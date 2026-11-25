@@ -19,6 +19,7 @@ on:
       - ".github/workflows/sweep.yml"
       # Snapshot commits rewrite site/data/*.json; do not start a second sweep.
       - "!site/data/**"
+      - "!site/feed/**"
 
 permissions:
   contents: write
