@@ -167,6 +167,82 @@ def strat_positions(ps, hi=config.P_LONG_THRESHOLD, lo=config.P_SHORT_THRESHOLD)
             "fade": [-s for s in sig], "hold": [1] * len(ps), "short": [-1] * len(ps)}
 
 
+HORIZONS = {"hourly": [("1h", 1), ("4h", 4), ("12h", 12), ("1d", 24), ("3d", 72), ("1w", 168)],
+            "daily": [("1d", 1), ("3d", 3), ("1w", 7)]}
+
+
+def horizon_run(gname, times, opens_n, rets, fund, ps, fee, i0, i1, h, side="signal"):
+    """Enter at every h-th bar (aligned to the UTC clock), hold h bars, then go flat.
+
+    side: signal = the call read at entry (flat if NEUTRAL); short / long = the naive baseline on the same
+    schedule. A trade must finish inside the window. Fee is paid on entry and again on exit (round trip),
+    funding every bar held, returns open-to-open.
+    """
+    unit = GRIDS[gname]["step"]
+    bars = []
+    trades = []
+    for i in range(i0, i1 - h + 1):
+        if (times[i] // unit) % h:
+            continue
+        s = sigma(ps[i]) if side == "signal" else (-1 if side == "short" else 1)
+        if s == 0:
+            continue
+        gross = s * (opens_n[i + h] / opens_n[i] - 1)
+        fund_sum = -s * sum(fund[i:i + h])
+        net = gross - 2 * fee + fund_sum
+        trades.append({"i": i, "s": s, "gross": gross, "net": net})
+    return trades
+
+
+def horizon_stats(trades, i0, i1, h, per_year_bars, rets, fund, fee):
+    n = len(trades)
+    if n == 0:
+        return {"trades": 0}
+    eq, peak, mdd = 1.0, 1.0, 0.0
+    # Drawdown on bar-level equity: flat between trades, mark-to-market inside them.
+    by_start = {t["i"]: t for t in trades}
+    i = i0
+    while i < i1:
+        t = by_start.get(i)
+        if t is None:
+            i += 1
+            continue
+        for k in range(h):
+            r = t["s"] * rets[i + k] - t["s"] * fund[i + k]
+            if k == 0:
+                r -= fee
+            if k == h - 1:
+                r -= fee
+            eq *= 1 + r
+            peak = max(peak, eq)
+            mdd = min(mdd, eq / peak - 1)
+        i += h
+    longs = [t for t in trades if t["s"] > 0]
+    shorts = [t for t in trades if t["s"] < 0]
+    mean = lambda xs: (sum(xs) / len(xs)) if xs else None  # noqa: E731
+    return {"trades": n, "hit_rate": sum(1 for t in trades if t["gross"] > 0) / n,
+            "net_hit_rate": sum(1 for t in trades if t["net"] > 0) / n,
+            "avg_net": mean([t["net"] for t in trades]), "avg_gross": mean([t["gross"] for t in trades]),
+            "avg_net_long_calls": mean([t["net"] for t in longs]), "n_long": len(longs),
+            "avg_net_short_calls": mean([t["net"] for t in shorts]), "n_short": len(shorts),
+            "total_return": eq - 1, "max_drawdown": mdd, "fees": -2 * fee * n}
+
+
+def horizons(gname, times, opens_n, rets, fund, ps, fee, wins):
+    out = {}
+    for wname, (i0, i1, _) in wins.items():
+        out[wname] = {}
+        for lab, h in HORIZONS[gname]:
+            if i1 - i0 < h:
+                continue
+            row = {}
+            for side in ("signal", "short", "long"):
+                tr = horizon_run(gname, times, opens_n, rets, fund, ps, fee, i0, i1, h, side)
+                row[side] = horizon_stats(tr, i0, i1, h, None, rets, fund, fee)
+            out[wname][lab] = {"hours": h * (1 if gname == "hourly" else 24), **row}
+    return out
+
+
 def evaluate(gname, times, opens_n, fund, ps, fee, cohort_ms, P_rows):
     """All windows, regimes, stress and the threshold grid on one price grid."""
     g = GRIDS[gname]
@@ -228,6 +304,7 @@ def evaluate(gname, times, opens_n, fund, ps, fee, cohort_ms, P_rows):
     best = max(grid, key=lambda r: (r["tune"]["sharpe_like"] if r["tune"]["sharpe_like"] is not None else -1e9))
     res["grid"] = {"grid": gname, "tune_start_ms": times[i0], "split_ms": times[mid], "end_ms": times[i1 - 1] + g["step"],
                    "rows": grid, "best_on_tune": [best["long"], best["short"]]}
+    res["horizons"] = horizons(gname, times, opens_n, rets, fund, ps, fee, wins)
     res["curves"] = {k: [round(x, 5) for x in curve(run(S[k][first:], rets[first:], fund[first:], fee))] for k in STRATS}
     res["first"] = first
     res["rets"], res["S"], res["opens"] = rets, S, opens
@@ -274,6 +351,7 @@ def main():
         windows = {**hres["windows"], **dres["windows"]}
         summary = {"coin": coin, "taker_fee": fee, "known_weight_share": known_share, "windows": windows,
                    "grids": {"hourly": hres["grid"], "daily": dres["grid"]},
+                   "horizons": {"hourly": hres["horizons"], "daily": dres["horizons"]},
                    "hourly_from_ms": ht_n[hres["first"]], "daily_from_ms": dt_n[dres["first"]]}
         sig_d = dres["S"]["signal"][dres["first"]:]
         summary["signal_mix"] = {"long": sig_d.count(1) / len(sig_d), "short": sig_d.count(-1) / len(sig_d),

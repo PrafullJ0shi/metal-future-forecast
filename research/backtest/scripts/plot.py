@@ -26,7 +26,7 @@ NAMES = {"signal": "Follow the signal", "long_only": "Long-only", "short_only": 
 
 plt.rcParams.update({"figure.facecolor": BG, "axes.facecolor": PANEL, "axes.edgecolor": GRID, "axes.labelcolor": TXT,
                      "xtick.color": SUB, "ytick.color": SUB, "text.color": TXT, "grid.color": GRID, "font.size": 10,
-                     "axes.grid": True, "grid.linewidth": .6, "legend.frameon": False, "savefig.facecolor": BG})
+                     "axes.grid": True, "axes.axisbelow": True, "grid.linewidth": .6, "legend.frameon": False, "savefig.facecolor": BG})
 
 
 def dts(ts):
@@ -85,6 +85,25 @@ def main():
     axes[0].set_title("Fig. B3. Cohort wallets holding each metal, by day (longs up, shorts down)", loc="left")
     fig.tight_layout()
     fig.savefig(FIG / "voters.png")
+    plt.close(fig)
+
+    fig, axes = plt.subplots(2, 2, figsize=(11, 6.4), dpi=130)
+    for r, metal in enumerate(("gold", "silver")):
+        for c, (g, wn, ttl) in enumerate((("hourly", "max_h", "hourly bars, all (since 1 May)"), ("daily", "listing", "daily bars, since listing"))):
+            ax = axes[r][c]
+            H = B["metals"][metal]["summary"]["horizons"][g][wn]
+            labs = list(H)
+            for j, (k, col, nm) in enumerate((("signal", C[f"signal_{metal}"], "Follow the signal"), ("short", C["short"], "Always short"), ("long", C["hold"], "Always long"))):
+                ax.bar([i + (j - 1) * .27 for i in range(len(labs))], [(H[l][k].get("avg_net") or 0) * 1e4 for l in labs], .26, color=col, label=nm)
+            ax.set_xticks(range(len(labs)), labs)
+            ax.axhline(0, color=SUB, lw=.8)
+            ax.set_title(f"{metal}, {ttl}", loc="left", fontsize=10)
+            ax.set_ylabel("avg net per trade, bp")
+            if r == 0 and c == 0:
+                ax.legend(fontsize=8)
+    fig.suptitle("Fig. B5. Average net return per trade by holding horizon (fees and funding in)", x=.01, ha="left")
+    fig.tight_layout()
+    fig.savefig(FIG / "horizons.png")
     plt.close(fig)
 
     fig, axes = plt.subplots(1, 2, figsize=(11, 3.8), dpi=130)

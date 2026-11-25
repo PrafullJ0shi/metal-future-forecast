@@ -130,6 +130,40 @@ def grid_table(m, gname):
     return "\n".join(out)
 
 
+HZ_WINS = [("hourly", "max_h", "Hourly bars, all (1 May to now)"), ("hourly", "oos_h", "Hourly, before ranking month (out-of-sample)"),
+           ("hourly", "90d", "Hourly, last 90 days"), ("hourly", "30d", "Hourly, last 30 days (in-sample)"),
+           ("daily", "listing", "Daily bars, since listing"), ("daily", "oos_d", "Daily, since listing to before ranking month (out-of-sample)")]
+
+
+def bps(x):
+    return "–" if x is None else f"{x * 1e4:+.1f} bp"
+
+
+def hz_table(m, g, wn):
+    H = m["horizons"][g][wn]
+    out = ["| Horizon | Trades | Hit rate | Avg gross | Avg net | Always-short avg net | Always-long avg net | Total return | Max DD | Long / short calls | Verdict |",
+           "| :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | :--- |"]
+    for lab, r in H.items():
+        s_ = r["signal"]
+        if not s_["trades"]:
+            out.append(f"| {lab} | 0 | – | – | – | – | – | – | – | – | never in the market |")
+            continue
+        verdict = "loses money" if s_["avg_net"] < 0 else ("beats both baselines" if s_["avg_net"] > max(r["short"].get("avg_net") or -1, r["long"].get("avg_net") or -1) else "makes money, a baseline did better")
+        out.append(f"| {lab} | {s_['trades']} | {pct(s_['hit_rate'], 0, False)} | {bps(s_['avg_gross'])} | **{bps(s_['avg_net'])}** | {bps(r['short'].get('avg_net'))} | "
+                   f"{bps(r['long'].get('avg_net'))} | {pct(s_['total_return'])} | {pct(s_['max_drawdown'])} | {s_['n_long']} / {s_['n_short']} | {verdict} |")
+    return "\n".join(out)
+
+
+def hz_text(m, k):
+    out = []
+    for g, wn in (("hourly", "max_h"), ("daily", "listing")):
+        H = m["horizons"][g][wn]
+        los = [l for l, r in H.items() if r["signal"]["trades"] and r["signal"]["avg_net"] < 0]
+        win = [l for l, r in H.items() if r["signal"]["trades"] and r["signal"]["avg_net"] >= 0]
+        out.append(f"{METAL[k]}, {g} bars: loses money after costs at {', '.join(los) or 'no horizon'}; positive at {', '.join(win) or 'no horizon'}")
+    return "; ".join(out) + "."
+
+
 def reach_table():
     I = S["inputs"]
     out = ["| Input | From (UTC) | To (UTC) | Notes |", "| :--- | :--- | :--- | :--- |"]
@@ -145,6 +179,15 @@ def reach_table():
         out.append(f"| Wallets not read | – | – | {h.get('missing', 0) + h.get('incomplete', 0)} wallets with an xyz account left out (no vote) |")
     out.append(f"| Cohort, month PnL, equity | {w['cohort_built_at_utc']} | same | today only, applied to every past day |")
     out.append("| Wallet fills | – | – | not used: `userFillsByTime` keeps the 10,000 latest fills, two to four days for the busiest wallets |")
+    return "\n".join(out)
+
+
+def hz_readme():
+    out = ["| Metal | Horizon | Trades | Hit rate | Avg net per trade | Always-short avg net | Total return | Max DD |", "| :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: |"]
+    for k in ("gold", "silver"):
+        for lab, r in S["metals"][k]["horizons"]["hourly"]["max_h"].items():
+            s_ = r["signal"]
+            out.append(f"| {METAL[k]} | {lab} | {s_['trades']} | {pct(s_['hit_rate'], 0, False)} | **{bps(s_['avg_net'])}** | {bps(r['short'].get('avg_net'))} | {pct(s_['total_return'])} | {pct(s_['max_drawdown'])} |")
     return "\n".join(out)
 
 
@@ -231,6 +274,15 @@ Wallets voting per day: median {s_['voters']['median']:.0f}, range {s_['voters']
 
 ![Silver equity curves](figures/equity_silver.png)
 
+## Holding horizons: is it a short-term or a long-term signal?
+
+Method: every N hours (aligned to the UTC clock; weekly entries to the Unix week, so Thursday 00:00 UTC) the latest call is read and traded for exactly N hours, then closed. One unit of notional, round-trip fee (0.18% gold, 0.018% silver) and funding while held. A trade must finish inside the window. "Hit rate" is the share of trades with the right direction before costs. The always-short and always-long columns use the same schedule, so they show what the horizon itself pays. Hourly candles exist only from 1 May 2026, so 1h, 4h and 12h can only be measured there; daily bars reach back to listing but cannot see anything shorter than a day. The call itself refreshes once a day in this backtest (positions of the day before), so a 1h trade re-reads the same call 24 times a day: that is a test of timing inside the day, not of a faster signal.
+
+![Horizons](figures/horizons.png)
+
+""" + "\n".join(f"### {METAL[k]}\n\n" + "\n\n".join(f"**{lab}**\n\n{hz_table(S['metals'][k], g, wn)}" for g, wn, lab in HZ_WINS) + "\n" for k in ("gold", "silver")) + """
+**Reading it.** """ + " ".join(hz_text(S["metals"][k], k) for k in ("gold", "silver")) + """ Where the signal's average net per trade is below zero the horizon loses money; where always-short on the same schedule does better, the call added nothing in a falling market.
+
 ## Signal and participation
 
 ![Reconstructed P(long)](figures/p_long.png)
@@ -249,7 +301,7 @@ Wallets voting per day: median {s_['voters']['median']:.0f}, range {s_['voters']
 - `data/daily_gold.csv`, `data/daily_silver.csv`: one row per day with P(long), voters, signal, regime, funding and returns.
 - `data/hourly_gold.csv`, `data/hourly_silver.csv`: the same signal on hourly bars.
 - `data/strategies.csv`, `data/regimes.csv`, `data/threshold_grid.csv`, `data/summary.json`.
-- `figures/*.png`.
+- `figures/*.png` (including `horizons.png`).
 - `scripts/`: `fetch.py`, `fetch_positions.py`, `prepare.py`, `analyze.py`, `plot.py`, `report.py`, in that order.
 """
     (BT / "README.md").write_text(md)
@@ -268,6 +320,14 @@ The live call, rebuilt day by day from every cohort wallet's `xyz:GOLD` and `xyz
 | Metal | Window | Metal move | Signal | Buy and hold | Always short | Sharpe-like | Max DD | Hit rate |
 | :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 {chr(10).join(rows)}
+
+**Holding horizons** (hourly bars, 1 May to now, fees and funding in; full table for every window in the write-up):
+
+{hz_readme()}
+
+![Average net return per trade by holding horizon](research/backtest/figures/horizons.png)
+
+{hz_text(S["metals"]["gold"], "gold")} {hz_text(S["metals"]["silver"], "silver")}
 
 **Honest take.** {plain[0]} {plain[3]} Full write-up with regimes, long-only and short-only legs, the threshold grid and every bias: [research/backtest](research/backtest/README.md). Wagmi only if it holds up forward.
 
