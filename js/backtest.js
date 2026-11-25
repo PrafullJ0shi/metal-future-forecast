@@ -1,7 +1,7 @@
 import { pct, num, when, day, esc, cls } from "./fmt.js";
 import { lineChart } from "./charts.js";
 
-let B, metal = "gold", win = "listing";
+let B, metal = "gold", win = "listing", hzWin = "hourly:max_h";
 const NAMES = { signal: "Follow the signal", long_only: "Long-only", short_only: "Short-only", fade: "Fade the signal", hold: "Buy and hold", short: "Always short" };
 const COL = { signal: null, long_only: "#7BD88F", short_only: "#C77DFF", fade: "#8A9299", hold: "#6FA8DC", short: "#FF6B6B" };
 const WINS = [
@@ -122,7 +122,43 @@ function verdict() {
   <p class="note">Full write-up, CSVs and charts: <a href="https://github.com/PrafullJ0shi/metal-future-forecast/tree/main/research/backtest">research/backtest</a>.</p>`;
 }
 
-function render() { windowChips(); curves(); table(); regimes(); grid(); }
+const HZ_WINS = [["hourly:max_h", "Hourly bars, all (since 1 May)"], ["hourly:oos_h", "Hourly, before ranking month (OOS)"], ["hourly:90d", "Hourly, 90d"], ["hourly:30d", "Hourly, 30d (in-sample)"],
+  ["daily:listing", "Daily bars, since listing"], ["daily:oos_d", "Daily, before ranking month (OOS)"]];
+const bp = x => x == null ? "–" : (x * 1e4 >= 0 ? "+" : "−") + Math.abs(x * 1e4).toFixed(1) + " bp";
+
+function horizonsView() {
+  const [g, wn] = hzWin.split(":"), H = M_().summary.horizons[g][wn];
+  document.getElementById("bt-hz-win").innerHTML = HZ_WINS.map(([k, lab]) => `<button type="button" data-hz="${k}" aria-pressed="${k === hzWin}">${lab}</button>`).join("");
+  const labs = Object.keys(H);
+  const w = M_().summary.windows[wn];
+  document.getElementById("bt-hz-sub").innerHTML = `Same call, held for a fixed time. Every N hours (clock-aligned) the latest call is read, the position is held for N hours, then closed. Fee on entry and exit, funding while held. Window: ${when(w.start_ms)} to ${when(w.end_ms)}. ${g === "daily" ? "Daily bars reach back to listing but cannot show anything shorter than a day." : "Hourly candles exist only from 1 May, so this is the short test; it is also the only place 1h to 12h can be measured."}`;
+  // Grouped bars: average net per trade, in bp.
+  const el = document.getElementById("bt-hz-chart"), W = Math.max(300, el.clientWidth - 12), Ht = W < 500 ? 230 : 280, m = { l: 52, r: 10, t: 14, b: 30 };
+  const sides = [["signal", metal === "gold" ? "#F5B700" : "#EEF1F4", "Follow the signal"], ["short", "#FF6B6B", "Always short"], ["long", "#6FA8DC", "Always long"]];
+  const vals = labs.flatMap(l => sides.map(([k]) => (H[l][k].avg_net || 0) * 1e4));
+  let lo = Math.min(0, ...vals), hi = Math.max(0, ...vals); const pad = (hi - lo) * .08 || 1; lo -= pad; hi += pad;
+  const Y = v => m.t + (hi - v) / (hi - lo) * (Ht - m.t - m.b), gw = (W - m.l - m.r) / labs.length, bw = Math.min(26, gw / 4);
+  let svg = `<svg viewBox="0 0 ${W} ${Ht}" width="${W}" height="${Ht}" class="lc">`;
+  const raw = (hi - lo) / 4, mag = Math.pow(10, Math.floor(Math.log10(raw))), step = [1, 2, 5, 10].map(f => f * mag).find(x => x >= raw);
+  for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) { svg += `<line class="grid" x1="${m.l}" x2="${W - m.r}" y1="${Y(v)}" y2="${Y(v)}"/><text class="tick" x="${m.l - 6}" y="${Y(v) + 4}" text-anchor="end">${v.toFixed(0)}</text>`; }
+  svg += `<line class="thr" x1="${m.l}" x2="${W - m.r}" y1="${Y(0)}" y2="${Y(0)}"/>`;
+  labs.forEach((l, i) => {
+    const cx = m.l + gw * (i + .5);
+    sides.forEach(([k, c], j) => { const v = (H[l][k].avg_net || 0) * 1e4, x = cx + (j - 1) * (bw + 3) - bw / 2, y0 = Y(0), y1 = Y(v);
+      svg += `<rect x="${x}" y="${Math.min(y0, y1)}" width="${bw}" height="${Math.max(1, Math.abs(y1 - y0))}" fill="${c}" rx="3"/>`; });
+    svg += `<text class="tick" x="${cx}" y="${Ht - 10}" text-anchor="middle">${l}</text>`;
+  });
+  el.innerHTML = svg + `<text class="tick" x="${m.l}" y="10">avg net per trade, bp</text></svg>`;
+  document.getElementById("bt-hz-legend").innerHTML = sides.map(([, c, n]) => `<span><span class="key" style="background:${c}"></span>${n}</span>`).join("");
+  const rows = labs.map(l => { const r = H[l], s = r.signal, sh = r.short; if (!s.trades) return `<tr><td class="lbl">${l}</td><td colspan="9">never in the market</td></tr>`;
+    const beats = s.avg_net > Math.max(sh.avg_net ?? -1, r.long.avg_net ?? -1);
+    return `<tr><td class="lbl">${l}</td><td class="num">${s.trades}</td><td class="num">${pct(s.hit_rate, 0, false)}</td><td class="num ${cls(s.avg_gross)}">${bp(s.avg_gross)}</td><td class="num ${cls(s.avg_net)}">${bp(s.avg_net)}</td><td class="num ${cls(sh.avg_net)}">${bp(sh.avg_net)}</td><td class="num ${cls(s.total_return)}">${pct(s.total_return)}</td><td class="num down">${pct(s.max_drawdown)}</td><td class="num">${s.n_long} / ${s.n_short}</td><td class="lbl">${s.avg_net < 0 ? "loses money" : beats ? "makes money, beats both baselines" : "makes money, but a baseline did better"}</td></tr>`; }).join("");
+  document.getElementById("bt-hz-table").innerHTML = `<tr><th>Horizon</th><th class="num">Trades</th><th class="num">Hit rate</th><th class="num">Avg gross</th><th class="num">Avg net</th><th class="num">Always-short avg net</th><th class="num">Total return</th><th class="num">Max drawdown</th><th class="num">Long / short calls</th><th>Verdict</th></tr>${rows}`;
+  const losers = labs.filter(l => H[l].signal.trades && H[l].signal.avg_net < 0);
+  document.getElementById("bt-hz-note").innerHTML = `Hit rate is the share of trades whose direction was right before costs. ${losers.length ? `<b>${losers.join(", ")} lose${losers.length === 1 ? "s" : ""} money here after fees and funding.</b> ` : "No horizon loses money in this window. "}Round-trip fees are 0.18% on gold and 0.018% on silver, so the shortest horizons need a very large edge per trade to survive. Few trades at 3d and 1w means those numbers are noisy. Weekly entries are aligned to the Unix week (Thursday 00:00 UTC).`;
+}
+
+function render() { windowChips(); curves(); table(); regimes(); grid(); horizonsView(); }
 
 export async function initBacktest() {
   try {
@@ -136,6 +172,7 @@ export async function initBacktest() {
   }
   hero(); inputs(); verdict(); render();
   document.getElementById("bt-metal").addEventListener("click", e => { const b = e.target.closest("button"); if (b) { metal = b.dataset.metal; render(); } });
+  document.getElementById("bt-hz-win").addEventListener("click", e => { const b = e.target.closest("button"); if (b) { hzWin = b.dataset.hz; horizonsView(); } });
   document.getElementById("bt-window").addEventListener("click", e => { const b = e.target.closest("button"); if (b) { win = b.dataset.w; render(); } });
-  window.addEventListener("redraw", () => { if (!document.getElementById("panel-backtest").hidden) curves(); });
+  window.addEventListener("redraw", () => { if (!document.getElementById("panel-backtest").hidden) { curves(); horizonsView(); } });
 }
