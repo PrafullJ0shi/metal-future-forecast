@@ -121,13 +121,26 @@ A sweep takes a few minutes inside the public limit of 1,200 request weight per 
 > [!NOTE]
 > Backtest numbers pending. The wallet position-history pull (every cohort wallet's metal positions since listing) is still running; results, CSVs and figures land in [research/backtest](research/backtest) in the next push.
 
+## Alerts, pair check and crowd check (v2)
+
+The Signal tab has three extra panels. None of them changes a verdict.
+
+- **Pair check** compares how the top wallets lean on gold and silver and shows the gold/silver price ratio.
+- **Crowd check** says how concentrated each metal's vote is and how many wallets would have to close to flip the call.
+- **Flip alerts** are opt-in and need no server or secret. The sweep writes `site/feed/gold.xml`, `silver.xml`, `all.xml` (Atom) and `site/data/alerts.json`. Add a feed to any reader, or switch on browser pings on the page (they poll every five minutes while the page is open). A flip only pings when the 95% interval no longer crosses 0.50.
+
+```bash
+python -m app.enrich --site-dir site   # add the v2 readings to an existing signal.json, offline
+python -m pytest                       # includes the node test for the browser logic
+```
+
 ## Run it locally
 
 ```bash
 python -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt
 python -m app                     # one sweep: writes data/ and site/data/
-python -m pytest                  # 42 tests
+python -m pytest
 python -m http.server -d site 8000
 ```
 

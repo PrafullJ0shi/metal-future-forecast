@@ -108,3 +108,24 @@ LIQ_SCAN_ABSORBERS = 8
 LIQ_SCAN_TOTAL = 16
 
 REQUEST_TIMEOUT = HTTP_TIMEOUT
+
+# v2: tilt, crowding and flip alerts
+FEED_DIR = SITE_DIR / "feed"
+ALERTS_JSON = DATA_DIR / "alerts.json"
+SITE_ALERTS_JSON = SITE_DATA_DIR / "alerts.json"
+ALERT_COOLDOWN_H = 3.0        # a second confirmed flip for the same metal inside this window is logged, not pinged
+ALERT_MAX_EVENTS = 100        # events kept in alerts.json
+ALERT_FEED_ENTRIES = 20       # entries per Atom feed
+TILT_EVEN_BAND = 0.30         # |lean gap| below this reads as "about even"
+RATIO_WINDOW_DAYS = 180
+FLIP_FRAGILE_K = 2            # call flips if this many wallets or fewer close
+WHALE_SHARE = 0.25            # one wallet holding this much of the vote is a whale call
+THIN_BOOK_VOTERS = 20
+
+# v2: scalp corner (a short-term lean from the last hour; not the main signal)
+SCALP_MIN_FLOW_USD = 250_000.0   # below this much gross top-wallet trading in the hour, the flow part is ignored
+SCALP_FLOW_FULL = 0.05           # net flow worth 5% of the cohort's gross notional scores a full +/-1
+SCALP_MOVE_FULL_Z = 2.0          # a 1h move of 2 hourly sigmas scores a full +/-1
+SCALP_FUNDING_FULL = 2.5e-5      # hourly funding of this size (about 22% a year) scores a full +/-1 (crowd-fade)
+SCALP_W_FLOW, SCALP_W_MOVE, SCALP_W_FUND = 0.55, 0.30, 0.15
+SCALP_LEAN_AT = 0.25             # |score| at or above this is a lean; below it, sit out

@@ -2,6 +2,7 @@ import { usd, px, pct, num, p2, cls, when, ago, esc, short, day, tzLabel } from 
 import { lineChart, gauge } from "./charts.js";
 import { initFlows } from "./flows.js";
 import { initBacktest } from "./backtest.js";
+import { initV2, redrawV2 } from "./v2.js";
 
 const METALS = ["gold", "silver"];
 const COLOR = { gold: "#F5B700", silver: "#C0C6CC" };
@@ -186,7 +187,7 @@ function show(id) {
   }
   if (id === "flows" && state.data && !inited.flows) { inited.flows = true; initFlows(state.data); }
   if (id === "backtest" && !inited.backtest) { inited.backtest = true; initBacktest(); }
-  if (id === "signal") requestAnimationFrame(() => { drawGauges(); drawCharts(); });
+  if (id === "signal") requestAnimationFrame(() => { drawGauges(); drawCharts(); if (state.data) redrawV2(state.data); });
   window.dispatchEvent(new Event("tabshown"));
 }
 window.addEventListener("hashchange", () => show(location.hash.slice(1)));
@@ -197,7 +198,7 @@ document.querySelector(".tabs").addEventListener("keydown", e => {
 });
 
 let rt;
-window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { drawGauges(); drawCharts(); window.dispatchEvent(new Event("redraw")); }, 150); });
+window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { drawGauges(); drawCharts(); if (state.data) redrawV2(state.data); window.dispatchEvent(new Event("redraw")); }, 150); });
 
 async function main() {
   try {
@@ -214,6 +215,7 @@ async function main() {
       posTable(m, "pos-" + k);
     }
     stamp(d); marketTable(d); changes(d); risk(d);
+    initV2(d);
   } catch (e) {
     document.getElementById("stamp").textContent = "Could not load the latest snapshot. The furnace is cold; try again in a minute.";
     console.error(e);
