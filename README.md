@@ -159,13 +159,26 @@ Gold, hourly bars: average net per trade is negative at 1h, 4h, 12h, 1d; positiv
 <p align="center"><img src="research/backtest/figures/equity_gold.png" alt="Gold: equity curves of the signal, buy and hold, always short, long-only, short-only and fade since listing" width="49%"> <img src="research/backtest/figures/equity_silver.png" alt="Silver: equity curves of the signal and baselines since listing" width="49%"></p>
 <!-- /BT -->
 
+## Alerts, pair check and crowd check (v2)
+
+The Signal tab has three extra panels. None of them changes a verdict.
+
+- **Pair check** compares how the top wallets lean on gold and silver and shows the gold/silver price ratio.
+- **Crowd check** says how concentrated each metal's vote is and how many wallets would have to close to flip the call.
+- **Flip alerts** are opt-in and need no server or secret. The sweep writes `site/feed/gold.xml`, `silver.xml`, `all.xml` (Atom) and `site/data/alerts.json`. Add a feed to any reader, or switch on browser pings on the page (they poll every five minutes while the page is open). A flip only pings when the 95% interval no longer crosses 0.50.
+
+```bash
+python -m app.enrich --site-dir site   # add the v2 readings to an existing signal.json, offline
+python -m pytest                       # includes the node test for the browser logic
+```
+
 ## Run it locally
 
 ```bash
 python -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt
 python -m app                     # one sweep: writes data/ and site/data/
-python -m pytest                  # 42 tests
+python -m pytest
 python -m http.server -d site 8000
 ```
 
