@@ -140,3 +140,21 @@ def test_new_log_replaces_a_same_timestamp_snapshot_and_stays_bounded():
     assert len(new) <= ACT.LOG_MAX and new[-1]["t"] == NOW
     _, again = ACT.build(new, [row("A", 2.0)], MARK, NOW)
     assert sum(1 for e in again if e["t"] == NOW) == 1
+
+
+def test_three_sweeps_through_a_json_round_trip_like_cohort_json():
+    import json
+    rows1 = [row("A", 1.0), row("B", -2.0)]
+    rows2 = [row("A", 1.0), row("B", -2.0), row("C", 3.0)]
+    rows3 = [row("A", 4.0), row("B", -2.0), row("C", 3.0)]
+    t = lambda m: NOW - m * MIN
+    _, log = ACT.build([], rows1, MARK, t(62))
+    log = json.loads(json.dumps(log))
+    _, log = ACT.build(log, rows2, MARK, t(31))
+    log = json.loads(json.dumps(log))
+    block, log = ACT.build(log, rows3, MARK, NOW)
+    assert block["available"] and block["span_min"] == 62
+    assert {(i["address"], i["kind"]) for i in block["items"]} == {("A", "added"), ("C", "opened")}
+    seen = {i["address"]: i["seen_ms"] for i in block["items"]}
+    assert seen["C"] == t(31) and seen["A"] == NOW
+    assert len(log) == 3
