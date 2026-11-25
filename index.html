@@ -9,6 +9,9 @@
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="preload" href="fonts/LuckiestGuy.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/Nunito-var.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="alternate" type="application/atom+xml" title="Metal Future Forecast: gold flips" href="feed/gold.xml">
+<link rel="alternate" type="application/atom+xml" title="Metal Future Forecast: silver flips" href="feed/silver.xml">
+<link rel="alternate" type="application/atom+xml" title="Metal Future Forecast: all flips" href="feed/all.xml">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -139,6 +142,29 @@
       <article class="blob metal-card silver" id="card-silver" data-metal="silver"><p class="loading">Melting the silver&hellip;</p></article>
     </div>
 
+    <article class="blob plate wide" id="tilt"><p class="loading">Weighing gold against silver&hellip;</p></article>
+
+    <div class="row two">
+      <article class="blob plate" id="crowd-gold"><p class="loading">Poking the gold crowd&hellip;</p></article>
+      <article class="blob plate" id="crowd-silver"><p class="loading">Poking the silver crowd&hellip;</p></article>
+    </div>
+
+    <div class="row two">
+      <article class="blob plate" id="split-gold"><p class="loading">Counting gold longs and shorts&hellip;</p></article>
+      <article class="blob plate" id="split-silver"><p class="loading">Counting silver longs and shorts&hellip;</p></article>
+    </div>
+
+    <article class="blob plate wide scalp" id="scalp">
+      <h2 class="ptitle">Scalp corner</h2>
+      <p class="ribbon">Short-term lean &middot; not advice &middot; not the main signal</p>
+      <p class="psub">A rule-of-thumb read of the last hour only: what the top wallets just did, how price moved, and how crowded funding is. The verdict above is the real signal and this never changes it. It is not backtested here and no hit rate is claimed.</p>
+      <div class="scalp-grid">
+        <div class="scalp-card" id="scalp-gold"><p class="loading">Warming the scalp corner&hellip;</p></div>
+        <div class="scalp-card" id="scalp-silver"><p class="loading">Warming the scalp corner&hellip;</p></div>
+      </div>
+      <div id="scalp-bt"></div>
+    </article>
+
     <div class="row two">
       <article class="blob plate">
         <h2 class="ptitle">P(long) over time</h2>
@@ -170,6 +196,19 @@
       <article class="blob plate"><h2 class="ptitle">Who moved since the last sweep</h2><p class="psub">Opened, closed, flipped, added or trimmed by at least $1,000.</p><div id="changes"></div></article>
       <article class="blob plate"><h2 class="ptitle">Degen meter</h2><p class="psub">Leverage and distance to liquidation of the cohort's open metal positions.</p><div id="risk"></div></article>
     </div>
+
+    <article class="blob plate wide" id="alerts">
+      <h2 class="ptitle">Flip alerts (opt-in)</h2>
+      <p class="psub">A flip is a verdict change. It only pings when the 95% interval also clears 0.50, so wobble around the line stays quiet. This site is static, so there is no server to push from. Two free ways in:</p>
+      <ul class="alert-ways">
+        <li><b>Atom feeds.</b> Add one to any feed reader and it works with this page closed.</li>
+        <li><b>Browser pings.</b> Switch them on below. They check every 5 minutes and only work while this page is open in a tab. Nothing is sent anywhere, and your choice stays in this browser.</li>
+      </ul>
+      <div id="alert-feeds" class="feedlinks"></div>
+      <div id="alert-controls" class="alert-controls"></div>
+      <h3 class="ptitle sub">Recent flips</h3>
+      <div id="alert-events"></div>
+    </article>
 
     <article class="blob plate wide explain">
       <h2 class="ptitle">How the call gets made</h2>
