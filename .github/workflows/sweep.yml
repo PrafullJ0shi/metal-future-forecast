@@ -1,0 +1,172 @@
+# Ready-to-paste GitHub Actions workflow for Metal Future Forecast.
+# Save it as .github/workflows/sweep.yml through the GitHub web UI (Add file -> Create new file),
+# then set Settings -> Pages -> Source to "GitHub Actions".
+name: Sweep and publish
+
+on:
+  schedule:
+    # Twice an hour, offset from the hour. A full cohort rebuild can take
+    # about ten to fifteen minutes; a positions-only pass is much shorter.
+    - cron: "11,41 * * * *"
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "app/**"
+      - "site/**"
+      - "requirements.txt"
+      - ".github/workflows/sweep.yml"
+      # Snapshot commits rewrite site/data/*.json; do not start a second sweep.
+      - "!site/data/**"
+      - "!site/feed/**"
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+# Do not cancel a running sweep: a cohort rebuild is expensive, and a re-run
+# of the same job would also upload a second github-pages artifact.
+concurrency:
+  group: metal-sweep
+  cancel-in-progress: false
+
+jobs:
+  # Upload and deploy must be separate jobs. deploy-pages looks up the
+  # github-pages artifact via the API a few hundred milliseconds after
+  # upload-pages-artifact finalizes it; in the same job that lookup
+  # intermittently returns 0 artifacts. A later job starts well after the
+  # artifact is visible. Official Pages starters use this split.
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Always the tip of main, not the SHA the run was queued with, so a
+          # re-run can rebase a snapshot onto later commits.
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run sweep
+        run: python -m app.sweep
+
+      - name: Commit snapshot
+        env:
+          BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          git config user.name "Prafull Joshi"
+          git config user.email "prafulljoshi92@gmail.com"
+          files=(
+            data/signal.json
+            data/history_gold.json
+            data/history_silver.json
+            data/cohort.json
+            site/data/signal.json
+            site/data/history_gold.json
+            site/data/history_silver.json
+            data/alerts.json
+            site/data/alerts.json
+            site/feed/gold.xml
+            site/feed/silver.xml
+            site/feed/all.xml
+          )
+          git add "${files[@]}"
+          if git diff --staged --quiet; then
+            echo "No snapshot changes."
+            exit 0
+          fi
+          git commit -m "Update gold and silver snapshot"
+
+          tmp="$(mktemp -d)"
+          for f in "${files[@]}"; do
+            mkdir -p "$tmp/$(dirname "$f")"
+            cp "$f" "$tmp/$f"
+          done
+
+          restore() {
+            for f in "${files[@]}"; do
+              mkdir -p "$(dirname "$f")"
+              cp "$tmp/$f" "$f"
+            done
+          }
+
+          for attempt in 1 2 3 4 5; do
+            git fetch origin "$BRANCH"
+            if git rebase "origin/$BRANCH"; then
+              if git push origin "HEAD:$BRANCH"; then
+                echo "Pushed snapshot on attempt ${attempt}."
+                exit 0
+              fi
+              echo "Push rejected on attempt ${attempt}."
+            else
+              echo "Rebase conflict on attempt ${attempt}; keeping this run's snapshot."
+              git rebase --abort || true
+              git reset --hard "origin/$BRANCH"
+              restore
+              git add "${files[@]}"
+              if git diff --staged --quiet; then
+                echo "Snapshot already matches origin/${BRANCH}."
+                exit 0
+              fi
+              git commit -m "Update gold and silver snapshot"
+            fi
+            sleep $((attempt * 4))
+          done
+
+          echo "Could not push the snapshot after retries; Pages will still be deployed from this run's site/."
+          restore
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: sweep
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.url.outputs.page_url }}
+    steps:
+      - name: Deploy GitHub Pages
+        id: deploy
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+
+      - name: Wait before retry
+        if: steps.deploy.outcome == 'failure'
+        run: sleep 20
+
+      - name: Retry deploy
+        id: deploy_retry
+        if: steps.deploy.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+
+      - name: Record page URL
+        id: url
+        run: |
+          set -euo pipefail
+          url="${{ steps.deploy.outputs.page_url }}"
+          if [ -z "$url" ]; then
+            url="${{ steps.deploy_retry.outputs.page_url }}"
+          fi
+          echo "page_url=$url" >> "$GITHUB_OUTPUT"
+          if [ -z "$url" ]; then
+            echo "Deploy did not report a page URL."
+            exit 1
+          fi
+          echo "Published ${url}"
