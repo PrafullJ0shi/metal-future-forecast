@@ -2,6 +2,7 @@
 import { px, pct, num, p2, cls, esc, when, ago, day, usd, short } from "./fmt.js";
 import { lineChart } from "./charts.js";
 import { PREF_KEY, parsePrefs, pickToNotify, newestMs, permissionLine, eventTag } from "./alertlogic.js";
+import { oneHourCites, citeLine } from "./horizon.js";
 
 const METALS = ["gold", "silver"];
 const COLOR = { gold: "#F5B700", silver: "#C0C6CC" };
@@ -308,5 +309,23 @@ export async function initAlerts(d) {
   startPolling();
 }
 
-export function initV2(d) { renderTilt(d); renderCrowd(d); renderSplit(d); renderScalp(d); initAlerts(d); }
+
+export async function renderHorizonCite() {
+  const el = document.getElementById("scalp-bt");
+  if (!el) return;
+  let cites = null;
+  try {
+    const r = await fetch("backtest/backtest.json", { cache: "no-store" });
+    if (r.ok) cites = oneHourCites(await r.json());
+  } catch { /* file not on this copy of the site */ }
+  if (!cites) {
+    el.innerHTML = `<p class="note">A 1-hour holding test of the <b>main signal</b> (not this scalp lean) lives in <a href="#backtest">Table 5 on the Backtest tab</a>. No hit rate is shown here because those numbers are not in the live files yet, and none will be invented.</p>`;
+    return;
+  }
+  const lines = METALS.map(k => citeLine(cites[k], NAME[k], day)).filter(Boolean);
+  el.innerHTML = `<p class="note scalp-cite"><b>Not a backtest of this lean.</b> The figures below are the main signal held for one hour, from Table 5. That study refreshes the call once a day, so it tests timing inside the day, not a faster signal. Hit rate is the share of trades whose direction was right <em>before costs</em>. Average net is after fees and funding. <a href="#backtest">Open Table 5</a>.</p>
+    <ul class="why cite">${lines.map(t => `<li>${esc(t)}</li>`).join("")}</ul>`;
+}
+
+export function initV2(d) { renderTilt(d); renderCrowd(d); renderSplit(d); renderScalp(d); renderHorizonCite(); initAlerts(d); }
 export function redrawV2(d) { drawTilt(d); }
