@@ -2,6 +2,13 @@
 
 All notable changes. Dates are UTC.
 
+## Unreleased (v2 branch)
+
+- **Pair check.** Gold and silver side by side: a see-saw tipped by the gap between the two P(long) readings, both leans on one -1 to +1 scale, the gold/silver price ratio over 180 daily closes with its percentile, and a one-line read. Positioning only, never a ratio forecast.
+- **Crowd check.** Per metal: how much of the vote the biggest wallets hold, the number of equal voters it is worth, how many wallets must close to change the call, and four plain soft-spot flags that make a four-step jelly meter (STURDY, SOLID, WOBBLY, JELLY). The sweep now stores each voter's side, weight and notional so this is exact.
+- **Flip alerts.** Opt-in and free on a static site: an Atom feed per metal (and one for both) plus `data/alerts.json`, written by the sweep, and a browser-notification switch that polls the JSON every five minutes while the page is open. A flip only pings when the 95% interval clears 0.50; weak flips, flips into NEUTRAL and flips inside a 3-hour cooldown are logged, not pushed.
+- `python -m app.enrich` adds the v2 readings to an existing `signal.json` offline.
+
 ## v1.0.0 (2026-11-25)
 
 First release, ported from [hyperliquid-btc-signal](https://github.com/PrafullJ0shi/hyperliquid-btc-signal) with the same pipeline and formula.
