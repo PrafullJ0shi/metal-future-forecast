@@ -64,7 +64,7 @@ function curves() {
   lineChart(eq, { series, yFmt: v => v.toFixed(0) + "%", xFmt: v => day(v), height: eq.clientWidth < 500 ? 260 : 340, thresholds: [0] });
   document.getElementById("bt-eq-legend").innerHTML = keys.map(k => `<span><span class="key" style="background:${colorFor(k)}"></span>${NAMES[k]}</span>`).join("");
   const label = WINS.find(x => x[0] === win)[2];
-  document.getElementById("bt-eq-sub").textContent = `${label}. ${when(w.start_ms)} to ${when(w.end_ms)}, ${num(w.bars, 0)} ${unit(w)}ly steps. ${metal === "gold" ? "Gold" : "Silver"} itself moved ${pct(w.metal_return)}. ${w.in_sample === "yes" ? "This window is the month the cohort was ranked on, so it is in-sample: the wallets were picked because they made money here." : w.in_sample === "partial" ? "The last 30 days of this window are the ranking month (in-sample)." : "Ends before the ranking month, so the cohort was not picked on these days."}`;
+  document.getElementById("bt-eq-sub").textContent = `${label}. ${when(w.start_ms)} to ${when(w.end_ms)}, ${num(w.bars, 0)} ${w.grid} steps. ${metal === "gold" ? "Gold" : "Silver"} itself moved ${pct(w.metal_return)}. ${w.in_sample === "yes" ? "This window is the month the cohort was ranked on, so it is in-sample: the wallets were picked because they made money here." : w.in_sample === "partial" ? "The last 30 days of this window are the ranking month (in-sample)." : "Ends before the ranking month, so the cohort was not picked on these days."}`;
   const ds = M_().series.daily, didx = slice(ds, w.grid === "daily" ? w : { start_ms: w.start_ms - 86400000, end_ms: w.end_ms });
   const tint = metal === "gold" ? "#F5B700" : "#C0C6CC";
   lineChart(document.getElementById("bt-p"), { series: [{ color: tint, width: 1.8, points: didx.map(j => [ds.t[j], ds.p[j]]) }], yDomain: [0, 1], yTicks: [0, .2, .4, .6, .8, 1], thresholds: [.4, .6], yFmt: v => v.toFixed(1), xFmt: v => day(v), empty: "No reading in this window." });
@@ -84,7 +84,7 @@ function table() {
     ["Fees", s => pct(s.fees, 2)], ["Funding", s => pct(s.funding, 2)], ["Avg / episode", s => pct(s.avg_return_per_episode, 2)]];
   document.getElementById("bt-table").innerHTML = `<tr><th>Strategy</th>${cols.map(c => `<th class="num">${c[0]}</th>`).join("")}</tr>` +
     Object.keys(NAMES).map(k => { const s = w.strategies[k]; return `<tr class="${k === "signal" ? "hl" : ""}"><td class="lbl"><span class="key" style="background:${colorFor(k)}"></span>${NAMES[k]}</td>${cols.map(c => `<td class="num ${c[2] ? cls(s.total_return) : ""}">${c[1](s)}</td>`).join("")}</tr>`; }).join("");
-  document.getElementById("bt-table-note").innerHTML = `Hit rate counts ${u}s in the market where the position matched the next ${u}'s move. An episode is one unbroken run of the same position. Sharpe-like is mean over standard deviation of ${u}ly net returns, annualised. Cost stress for the signal: doubled fee ${pct(w.stress.fee_x2)}, standard HIP-3 fee (0.09%) ${pct(w.stress.standard_hip3_fee)}.`;
+  document.getElementById("bt-table-note").innerHTML = `Hit rate counts ${u}s in the market where the position matched the next ${u}'s move. An episode is one unbroken run of the same position. Sharpe-like is mean over standard deviation of ${w.grid} net returns, annualised. Cost stress for the signal: doubled fee ${pct(w.stress.fee_x2)}, standard HIP-3 fee (0.09%) ${pct(w.stress.standard_hip3_fee)}.`;
 }
 
 function regimes() {
@@ -111,7 +111,8 @@ function inputs() {
   }
   const w = I.wallets, h = w.history || {};
   rows.push(["Wallet positions (userFunding)", w.history_from, w.history_to, `${h.complete || 0} of ${w.cohort} wallets read in full. Daily figures until ${(w.daily_rows_until || "–").slice(0, 10)}, then the 12:00 UTC funding hour of each day. Ever held gold: ${w.wallets_ever_in.gold}, silver: ${w.wallets_ever_in.silver}. Blind spot: ${w.blind_spot}.`]);
-  if (h.missing || h.incomplete) rows.push(["Wallets not read", "–", "–", `${(h.missing || 0) + (h.incomplete || 0)} wallets left out of every day (unknown, not assumed flat)`]);
+  if (h.assumed_flat) rows.push(["Wallets assumed flat", "–", "–", `${h.assumed_flat} wallets with no xyz account and no metal position today were not read; they count as flat (no vote)`]);
+  if (h.missing || h.incomplete) rows.push(["Wallets not read", "–", "–", `${(h.missing || 0) + (h.incomplete || 0)} wallets with an xyz account could not be read in full and are left out (no vote)`]);
   rows.push(["Cohort, month PnL, equity", w.cohort_built_at_utc, w.cohort_built_at_utc, "Today only. Applied to every past day, which flatters the past (survivorship)."]);
   document.getElementById("bt-inputs").innerHTML = `<tr><th>Input</th><th>From (UTC)</th><th>To (UTC)</th><th>Notes</th></tr>` + rows.map(r => `<tr><td class="lbl">${esc(r[0])}</td><td>${esc(r[1] || "–")}</td><td>${esc(r[2] || "–")}</td><td class="lbl">${esc(r[3])}</td></tr>`).join("");
 }

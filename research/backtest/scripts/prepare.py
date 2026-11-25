@@ -40,14 +40,19 @@ def main():
     listing = min(mk["coins"][c]["funding"][0][0] for c in ("xyz:GOLD", "xyz:SILVER")) - DAY
     (INP / "market.json").write_text(json.dumps(mk, separators=(",", ":")))
 
-    paths, hourly_from = {}, []
+    paths, hourly_from, hourly_cut = {}, [], []
     daily_last = []
     for w in accounts:
         f = RAW / "positions" / f"{w['address']}.json"
-        w["history"] = "missing"
+        xyz = w["equity_xyz"] > 0 or any(w["szi"].values())
+        w["history"] = "missing" if xyz else "assumed_flat"
         if not f.exists():
+            # No xyz account today: assumed never to have held xyz metals (they would need xyz margin).
+            # Either way the wallet adds nothing to P(long); see the write-up.
             continue
         d = json.loads(f.read_text())
+        if d.get("hourly_from_ms"):
+            hourly_cut.append(d["hourly_from_ms"])
         if not d.get("complete"):
             w["history"] = "incomplete"
             continue
@@ -99,10 +104,11 @@ def main():
         "history_source": "userFunding (one row per open position per funding hour; older rows served as daily aggregates)",
         "history_from": iso(listing),
         "history_to": iso(mk["fetched_ms"]),
-        "daily_rows_until": iso(max(daily_last)) if daily_last else None,
-        "sampled_days_from": iso(min(hourly_from) - min(hourly_from) % DAY) if hourly_from else None,
+        "daily_rows_until": iso(hourly_cut[0] - DAY) if hourly_cut else None,
+        "sampled_days_from": iso(hourly_cut[0]) if hourly_cut else None,
         "sampled_hour": "12:00 UTC (recent days are served hourly only; one hour per day is read)",
         "wallets_ever_in": {k: sum(1 for p in paths.values() if p["days"][k]) for k in config.METALS},
+        "assumed_flat_rule": "wallets with no xyz account value and no metal position today were not read and count as flat",
         "blind_spot": "positions opened and closed between two funding hours never show up",
         "today_only": ["leaderboard rank and month PnL", "account equity", "cohort membership"],
     }
