@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Metal Future Forecast (Hyperliquid): gold and silver long/short signal</title>
+<meta name="description" content="Are Hyperliquid's top 500 traders long or short gold and silver right now? A weighted P(long), a 95% interval, flows, whales, liquidations and an honest backtest.">
+<meta name="theme-color" content="#140D08">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preload" href="fonts/LuckiestGuy.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/Nunito-var.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<svg class="defs" aria-hidden="true" width="0" height="0" focusable="false">
+  <defs>
+    <filter id="goo" x="-10%" y="-20%" width="120%" height="160%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="7" result="blur"/>
+      <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -9" result="goo"/>
+      <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
+    </filter>
+    <filter id="goo-soft" x="-20%" y="-20%" width="140%" height="160%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="b"/>
+      <feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7"/>
+    </filter>
+    <linearGradient id="molten" x1="0" y1="0" x2="1" y2="0" gradientUnits="objectBoundingBox" spreadMethod="reflect">
+      <stop offset="0" stop-color="#FFE08A"/>
+      <stop offset=".28" stop-color="#F5B700"/>
+      <stop offset=".52" stop-color="#FF5A1F"/>
+      <stop offset=".74" stop-color="#F5B700"/>
+      <stop offset="1" stop-color="#C8901A"/>
+      <animate class="anim" attributeName="x1" values="0;-1;0" dur="9s" repeatCount="indefinite"/>
+      <animate class="anim" attributeName="x2" values="1;0;1" dur="9s" repeatCount="indefinite"/>
+    </linearGradient>
+    <linearGradient id="chrome" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#EEF1F4"/>
+      <stop offset=".45" stop-color="#C0C6CC"/>
+      <stop offset=".55" stop-color="#8A9299"/>
+      <stop offset="1" stop-color="#D9DEE2"/>
+    </linearGradient>
+    <linearGradient id="gold-body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFE08A"/>
+      <stop offset=".5" stop-color="#F5B700"/>
+      <stop offset="1" stop-color="#C8901A"/>
+    </linearGradient>
+    <linearGradient id="silver-body" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#EEF1F4"/>
+      <stop offset=".5" stop-color="#C0C6CC"/>
+      <stop offset="1" stop-color="#8A9299"/>
+    </linearGradient>
+    <linearGradient id="lava-wave" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#C8901A"/>
+      <stop offset=".5" stop-color="#FF5A1F"/>
+      <stop offset="1" stop-color="#F5B700"/>
+    </linearGradient>
+    <symbol id="nugget" viewBox="0 0 160 160">
+      <g class="m-body">
+        <path d="M22 108 L44 46 Q49 34 62 34 H98 Q111 34 116 46 L138 108 Q142 124 126 124 H112 Q106 124 106 132 Q106 146 97 146 Q88 146 88 134 V124 H70 Q66 124 66 129 Q66 136 60 136 Q54 136 54 129 V124 H34 Q18 124 22 108 Z" fill="url(#gold-body)" stroke="#050302" stroke-width="5" stroke-linejoin="round"/>
+        <path d="M58 44 L46 82" stroke="#FFF6D6" stroke-width="7" stroke-linecap="round" opacity=".9"/>
+        <circle cx="44" cy="94" r="4" fill="#FFF6D6"/>
+      </g>
+      <g class="m-face">
+        <g class="eye"><ellipse cx="66" cy="78" rx="11" ry="13" fill="#FFF8E6" stroke="#050302" stroke-width="4"/><circle class="pupil" cx="66" cy="79" r="5" fill="#050302"/></g>
+        <g class="eye"><ellipse cx="96" cy="78" rx="11" ry="13" fill="#FFF8E6" stroke="#050302" stroke-width="4"/><circle class="pupil" cx="96" cy="79" r="5" fill="#050302"/></g>
+        <rect class="lid" x="52" y="62" width="58" height="0" fill="#C8901A"/>
+        <path class="mouth mouth-long" d="M68 100 Q81 114 94 100" fill="none" stroke="#050302" stroke-width="5" stroke-linecap="round"/>
+        <path class="mouth mouth-short" d="M68 108 Q81 96 94 108" fill="none" stroke="#050302" stroke-width="5" stroke-linecap="round"/>
+        <path class="mouth mouth-neutral" d="M70 104 H92" fill="none" stroke="#050302" stroke-width="5" stroke-linecap="round"/>
+      </g>
+    </symbol>
+    <symbol id="quick" viewBox="0 0 160 160">
+      <g class="m-body">
+        <path d="M80 10 C92 40 136 70 136 106 C136 122 128 134 116 140 Q112 150 104 150 Q96 150 97 143 C92 145 86 146 80 146 C48 146 24 130 24 104 C24 70 68 40 80 10 Z" fill="url(#silver-body)" stroke="#050302" stroke-width="5" stroke-linejoin="round"/>
+        <path d="M64 50 Q50 70 46 92" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" fill="none" opacity=".85"/>
+        <circle cx="46" cy="106" r="4" fill="#FFFFFF"/>
+      </g>
+      <g class="m-face">
+        <g class="eye"><ellipse cx="66" cy="94" rx="11" ry="13" fill="#FFFFFF" stroke="#050302" stroke-width="4"/><circle class="pupil" cx="66" cy="95" r="5" fill="#050302"/></g>
+        <g class="eye"><ellipse cx="96" cy="94" rx="11" ry="13" fill="#FFFFFF" stroke="#050302" stroke-width="4"/><circle class="pupil" cx="96" cy="95" r="5" fill="#050302"/></g>
+        <rect class="lid" x="52" y="78" width="58" height="0" fill="#8A9299"/>
+        <path class="mouth mouth-long" d="M68 116 Q81 130 94 116" fill="none" stroke="#050302" stroke-width="5" stroke-linecap="round"/>
+        <path class="mouth mouth-short" d="M68 124 Q81 112 94 124" fill="none" stroke="#050302" stroke-width="5" stroke-linecap="round"/>
+        <path class="mouth mouth-neutral" d="M70 120 H92" fill="none" stroke="#050302" stroke-width="5" stroke-linecap="round"/>
+      </g>
+    </symbol>
+  </defs>
+</svg>
+
+<a class="skip" href="#main">Skip to the readings</a>
+
+<header class="hero">
+  <div class="hero-inner">
+    <svg class="mascot mascot-gold" id="mascot-gold" viewBox="0 0 160 160" role="img" aria-label="Nugget, the gold mascot"><use href="#nugget"/></svg>
+    <div class="wordmark-wrap">
+      <p class="eyebrow">Hyperliquid &middot; xyz:GOLD &middot; xyz:SILVER</p>
+      <h1 class="wordmark">
+        <span class="sr">Metal Future Forecast</span>
+        <svg viewBox="0 0 1000 330" aria-hidden="true" class="wm-svg">
+          <g filter="url(#goo)" class="wm-goo">
+            <text x="500" y="120" text-anchor="middle" class="wm-text">METAL FUTURE</text>
+            <text x="500" y="250" text-anchor="middle" class="wm-text">FORECAST</text>
+            <g class="drips" fill="url(#molten)">
+              <rect class="drip d1" x="118" y="108" width="20" height="46" rx="10"/>
+              <rect class="drip d2" x="262" y="110" width="16" height="36" rx="8"/>
+              <rect class="drip d3" x="445" y="108" width="22" height="52" rx="11"/>
+              <rect class="drip d4" x="640" y="110" width="15" height="34" rx="7"/>
+              <rect class="drip d5" x="812" y="108" width="20" height="44" rx="10"/>
+              <rect class="drip d6" x="300" y="238" width="22" height="58" rx="11"/>
+              <rect class="drip d7" x="488" y="240" width="16" height="40" rx="8"/>
+              <rect class="drip d8" x="664" y="238" width="24" height="66" rx="12"/>
+              <circle class="plop b1" cx="311" cy="312" r="9"/>
+              <circle class="plop b2" cx="676" cy="318" r="10"/>
+            </g>
+          </g>
+          <g class="wm-crisp">
+            <text x="500" y="120" text-anchor="middle">METAL FUTURE</text>
+            <text x="500" y="250" text-anchor="middle">FORECAST</text>
+          </g>
+        </svg>
+      </h1>
+      <p class="tagline">Where the top 500 Hyperliquid wallets park their gold and silver. <em>Long, short, or just vibing.</em></p>
+      <p class="stamp" id="stamp">Loading the latest pour&hellip;</p>
+    </div>
+    <svg class="mascot mascot-silver" id="mascot-silver" viewBox="0 0 160 160" role="img" aria-label="Quicksilver, the silver mascot"><use href="#quick"/></svg>
+  </div>
+  <svg class="lava" viewBox="0 0 1440 60" preserveAspectRatio="none" aria-hidden="true"><path class="lava-path" d="M0 30 Q 90 6 180 30 T 360 30 T 540 30 T 720 30 T 900 30 T 1080 30 T 1260 30 T 1440 30 V60 H0Z" fill="url(#lava-wave)"/></svg>
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <a role="tab" href="#signal" id="tab-signal" aria-controls="panel-signal">Signal</a>
+    <a role="tab" href="#flows" id="tab-flows" aria-controls="panel-flows">Flows</a>
+    <a role="tab" href="#backtest" id="tab-backtest" aria-controls="panel-backtest">Backtest</a>
+  </nav>
+</header>
+
+<main id="main">
+  <!-- SIGNAL -->
+  <section id="panel-signal" class="tabpanel" role="tabpanel" aria-labelledby="tab-signal">
+    <div class="scale" id="scale">
+      <article class="blob metal-card gold" id="card-gold" data-metal="gold"><p class="loading">Melting the gold&hellip;</p></article>
+      <article class="blob metal-card silver" id="card-silver" data-metal="silver"><p class="loading">Melting the silver&hellip;</p></article>
+    </div>
+
+    <div class="row two">
+      <article class="blob plate">
+        <h2 class="ptitle">P(long) over time</h2>
+        <p class="psub">Each dot is one sweep (about every 30 minutes). Dashed lines are the 0.40 and 0.60 thresholds.</p>
+        <div class="chart" id="hist-chart" role="img" aria-label="History of P(long) for gold and silver"></div>
+        <div class="legend"><span class="key k-gold"></span>Gold <span class="key k-silver"></span>Silver</div>
+      </article>
+      <article class="blob plate">
+        <h2 class="ptitle">Price, last 7 days</h2>
+        <p class="psub">Hourly closes, rebased to 100 at the start so both metals share one axis.</p>
+        <div class="chart" id="price-chart" role="img" aria-label="Gold and silver hourly price, rebased"></div>
+        <div class="legend"><span class="key k-gold"></span>xyz:GOLD <span class="key k-silver"></span>xyz:SILVER</div>
+      </article>
+    </div>
+
+    <article class="blob plate wide">
+      <h2 class="ptitle">Market on the stove</h2>
+      <p class="psub">Live context from <code>metaAndAssetCtxs</code>, <code>candleSnapshot</code> and <code>fundingHistory</code>. Funding is hourly; positive means longs pay shorts.</p>
+      <div class="table-wrap"><table class="data" id="market-table"></table></div>
+      <p class="note" id="paxg-note"></p>
+    </article>
+
+    <div class="row two">
+      <article class="blob plate"><h2 class="ptitle">Biggest bags: gold</h2><p class="psub">The ten largest gold positions in the top cohort. Weight is the vote each one casts.</p><div class="table-wrap"><table class="data compact" id="pos-gold"></table></div></article>
+      <article class="blob plate"><h2 class="ptitle">Biggest bags: silver</h2><p class="psub">The ten largest silver positions in the top cohort.</p><div class="table-wrap"><table class="data compact" id="pos-silver"></table></div></article>
+    </div>
+
+    <div class="row two">
+      <article class="blob plate"><h2 class="ptitle">Who moved since the last sweep</h2><p class="psub">Opened, closed, flipped, added or trimmed by at least $1,000.</p><div id="changes"></div></article>
+      <article class="blob plate"><h2 class="ptitle">Degen meter</h2><p class="psub">Leverage and distance to liquidation of the cohort's open metal positions.</p><div id="risk"></div></article>
+    </div>
+
+    <article class="blob plate wide explain">
+      <h2 class="ptitle">How the call gets made</h2>
+      <ol class="steps">
+        <li><b>Pick the crew.</b> Take the public Hyperliquid leaderboard, keep wallets with at least $10,000 equity, positive month PnL and month volume no more than 100&times; equity, then re-rank the best 700 on <em>perp-only</em> month PnL and keep the top 500.</li>
+        <li><b>Read their bags.</b> For every wallet, read the validator-dex account and the <code>xyz</code> builder-dex account (metals live there and keep separate margin). Equity is the sum of both.</li>
+        <li><b>Weigh each vote.</b> <span class="formula">w = ln(1 + month PnL) &times; min(1, equity / $100k) &times; min(3, |position| / equity)</span>. Bigger winners, bigger accounts and bigger conviction count more, all capped.</li>
+        <li><b>Count the money.</b> <span class="formula">P(long) = &Sigma; w<sub>long</sub> / (&Sigma; w<sub>long</sub> + &Sigma; w<sub>short</sub>)</span>. Wallets with no position in that metal do not vote.</li>
+        <li><b>Call it.</b> LONG at 0.60 or above, SHORT at 0.40 or below, NEUTRAL in between. The 95% bootstrap interval resamples wallets 5,000 times; if it straddles 0.5, the call is weak.</li>
+        <li><b>Stay humble.</b> This describes positions at one moment. It is not a forecast and not advice. Leaders hedge, copy each other and get liquidated too.</li>
+      </ol>
+    </article>
+  </section>
+
+  <!-- FLOWS -->
+  <section id="panel-flows" class="tabpanel" role="tabpanel" aria-labelledby="tab-flows" hidden>
+    <div class="chips-bar">
+      <div class="chips" role="group" aria-label="Metal" id="flow-metal">
+        <button type="button" data-metal="gold" aria-pressed="true">Gold</button>
+        <button type="button" data-metal="silver" aria-pressed="false">Silver</button>
+      </div>
+      <div class="chips" role="group" aria-label="Timeframe" id="flow-tf"></div>
+    </div>
+    <article class="blob plate wide flowbox" id="flowbox"></article>
+    <div class="row two">
+      <article class="blob plate" id="cohorts"></article>
+      <article class="blob plate" id="liqs"></article>
+    </div>
+    <article class="blob plate wide"><h2 class="ptitle">Whale tape</h2><p class="psub" id="whale-rules"></p><div id="whales"></div></article>
+    <article class="blob plate wide explain">
+      <h2 class="ptitle">How to read Flows</h2>
+      <ol class="steps" id="flow-explain">
+        <li><b>Opened, added, trimmed, closed.</b> Each sweep compares every wallet's size with the previous sweep and sorts the change into those four buckets, per side. Sizes are valued at the current mark, so price moves alone never count as flow.</li>
+        <li><b>Toward long.</b> Net new long dollars minus net new short dollars over the window. Positive means the crew leaned harder long.</li>
+        <li><b>Top versus ngmi cohort.</b> The ngmi cohort is the 500 wallets with the biggest month losses, same equity floor and turnover cap. When the two crews move opposite ways, that is the interesting bit.</li>
+        <li><b>Whales.</b> A position change of at least $250k between sweeps, a single order of at least $250k, or a worked order (TWAP-style run) of at least $250k.</li>
+        <li><b>Liquidations.</b> Hyperliquid's public API has <em>no market-wide liquidation feed</em>. We only see liquidations inside the fills of the 1,000 tracked wallets, so the count is a floor. The open-interest proxy flags steps where OI drops sharply during a big price move; it cannot tell a liquidation from a normal close.</li>
+        <li><b>Windows.</b> A timeframe chip goes grey until the sweep history reaches back that far. Positions opened and closed between two sweeps are invisible.</li>
+      </ol>
+    </article>
+  </section>
+
+  <!-- BACKTEST -->
+  <section id="panel-backtest" class="tabpanel" role="tabpanel" aria-labelledby="tab-backtest" hidden>
+    <article class="blob plate wide bt-hero" id="bt-hero"><p class="loading">Firing up the lab&hellip;</p></article>
+    <div class="chips-bar">
+      <div class="chips" role="group" aria-label="Metal" id="bt-metal">
+        <button type="button" data-metal="gold" aria-pressed="true">Gold</button>
+        <button type="button" data-metal="silver" aria-pressed="false">Silver</button>
+      </div>
+      <div class="chips" role="group" aria-label="Window" id="bt-window"></div>
+    </div>
+    <article class="blob plate wide">
+      <h2 class="ptitle">Fig. 1 &middot; Equity curves</h2>
+      <p class="psub" id="bt-eq-sub"></p>
+      <div class="chart tall" id="bt-equity" role="img" aria-label="Equity curves of the signal and the baselines"></div>
+      <div class="legend" id="bt-eq-legend"></div>
+    </article>
+    <article class="blob plate wide">
+      <h2 class="ptitle">Table 1 &middot; Strategies, after fees and funding</h2>
+      <div class="table-wrap"><table class="data" id="bt-table"></table></div>
+      <p class="note" id="bt-table-note"></p>
+    </article>
+    <div class="row two">
+      <article class="blob plate"><h2 class="ptitle">Table 2 &middot; By market regime</h2><p class="psub" id="bt-regime-sub"></p><div class="table-wrap"><table class="data compact" id="bt-regime"></table></div></article>
+      <article class="blob plate"><h2 class="ptitle">Table 3 &middot; Threshold sensitivity</h2><p class="psub" id="bt-grid-sub"></p><div class="table-wrap"><table class="data compact" id="bt-grid"></table></div></article>
+    </div>
+    <div class="row two">
+      <article class="blob plate"><h2 class="ptitle">Fig. 2 &middot; P(long), rebuilt day by day</h2><p class="psub">From each wallet's position the day before. Dashed lines are 0.40 and 0.60.</p><div class="chart" id="bt-p" role="img" aria-label="Reconstructed daily P(long)"></div></article>
+      <article class="blob plate"><h2 class="ptitle">Fig. 3 &middot; Who was in the trade</h2><p class="psub">Cohort wallets holding the metal each day: longs above zero, shorts below.</p><div class="chart" id="bt-cov" role="img" aria-label="Number of cohort wallets long and short each day"></div></article>
+    </div>
+    <article class="blob plate wide">
+      <h2 class="ptitle">Table 4 &middot; Inputs and how far back they go</h2>
+      <div class="table-wrap"><table class="data compact" id="bt-inputs"></table></div>
+    </article>
+    <article class="blob plate wide explain" id="bt-verdict"></article>
+  </section>
+</main>
+
+<footer class="foot">
+  <svg class="lava flip" viewBox="0 0 1440 60" preserveAspectRatio="none" aria-hidden="true"><path class="lava-path" d="M0 30 Q 90 6 180 30 T 360 30 T 540 30 T 720 30 T 900 30 T 1080 30 T 1260 30 T 1440 30 V60 H0Z" fill="url(#lava-wave)"/></svg>
+  <div class="foot-inner">
+    <p><b>Not financial advice. Not a forecast.</b> A descriptive reading of public Hyperliquid positions. It can be wrong. Do not trade on it; touch grass instead.</p>
+    <p>Data: <code>api.hyperliquid.xyz/info</code> and the public leaderboard. Markets: <code>xyz:GOLD</code> and <code>xyz:SILVER</code> on the trade[XYZ] HIP-3 dex. <a href="https://github.com/PrafullJ0shi/metal-future-forecast">Source on GitHub</a> &middot; <a href="data/signal.json">signal.json</a> &middot; MIT.</p>
+  </div>
+</footer>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
