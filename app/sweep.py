@@ -17,7 +17,9 @@ import sys
 import time
 from typing import Any, Optional
 
+from . import alerts as AL
 from . import config
+from . import enrich as ENRICH
 from . import flow as FL
 from . import market as MK
 from . import store as ST
@@ -279,6 +281,7 @@ async def run_sweep(*, force_portfolio: bool = False) -> dict[str, Any]:
         issued = now_utc()
         now_ms = int(issued.timestamp() * 1000)
         metals_out: dict[str, Any] = {}
+        prev_verdicts: dict[str, Optional[str]] = {}
         prev_metals = previous.get("metals") or {}
         new_metals_state: dict[str, Any] = {}
         for key, m in config.METALS.items():
@@ -287,7 +290,7 @@ async def run_sweep(*, force_portfolio: bool = False) -> dict[str, Any]:
             mark = _float(ctx.get("markPx"), 0.0) or None
             rows_top = metal_rows(accounts, key, mark)
             rows_bad = metal_rows(contrast_accounts, key, mark)
-            sig = compute_signal(rows_top)
+            sig = compute_signal(rows_top, top_n=10 ** 6)  # every voter; trimmed to 20 below
             mk = await MK.fetch_market(client, m["coin"], now_ms)
             summary = MK.summarise(mk, ctx, mark, now_ms)
             history = ST.load_history(key)
@@ -303,6 +306,9 @@ async def run_sweep(*, force_portfolio: bool = False) -> dict[str, Any]:
             except Exception as exc:  # noqa: BLE001 — the reading must still publish
                 log.exception("%s tracking failed: %s", key, exc)
             body = sig.to_dict()
+            # v2: the full voter list (side, weight, notional) feeds the crowding meter; the page still gets 20 rows.
+            body["voters"] = [[r["side"], round(r["weight"], 6), round(r["notional"])] for r in body["top_positions"]]
+            body["top_positions"] = body["top_positions"][:20]
             body.update({
                 "metal": key,
                 "coin": m["coin"],
@@ -322,6 +328,7 @@ async def run_sweep(*, force_portfolio: bool = False) -> dict[str, Any]:
                    "n_short": body["n_short"], "n_flat": body["n_flat"], "notional_long": body["notional_long"],
                    "notional_short": body["notional_short"], "oi": summary.get("open_interest"),
                    "funding": summary.get("funding_hourly")}
+            prev_verdicts[key] = history[-1].get("verdict") if history else None
             history = [h for h in history if h.get("ts_utc") != row["ts_utc"]] + [row]
             ST.write_history(key, history)
             body["history"] = history[-config.SIGNAL_HISTORY_POINTS:]
@@ -378,6 +385,11 @@ async def run_sweep(*, force_portfolio: bool = False) -> dict[str, Any]:
         "disclaimer": ("A descriptive reading of public positions, not financial advice and not a prediction. "
                        "It can be wrong. Do not trade on it."),
     }
+    try:  # v2 readings must never stop a snapshot from publishing
+        payload, alerts_state = ENRICH.apply(payload, prev_verdicts, AL.load_state(config.ALERTS_JSON))
+        AL.write_outputs(alerts_state)
+    except Exception as exc:  # noqa: BLE001
+        log.exception("v2 enrich failed: %s", exc)
     ST.write_signal(payload)
     cohort = dict(cohort)
     cohort["metals"] = new_metals_state

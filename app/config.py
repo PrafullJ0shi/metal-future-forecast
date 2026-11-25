@@ -108,3 +108,16 @@ LIQ_SCAN_ABSORBERS = 8
 LIQ_SCAN_TOTAL = 16
 
 REQUEST_TIMEOUT = HTTP_TIMEOUT
+
+# v2: tilt, crowding and flip alerts
+FEED_DIR = SITE_DIR / "feed"
+ALERTS_JSON = DATA_DIR / "alerts.json"
+SITE_ALERTS_JSON = SITE_DATA_DIR / "alerts.json"
+ALERT_COOLDOWN_H = 3.0        # a second confirmed flip for the same metal inside this window is logged, not pinged
+ALERT_MAX_EVENTS = 100        # events kept in alerts.json
+ALERT_FEED_ENTRIES = 20       # entries per Atom feed
+TILT_EVEN_BAND = 0.30         # |lean gap| below this reads as "about even"
+RATIO_WINDOW_DAYS = 180
+FLIP_FRAGILE_K = 2            # call flips if this many wallets or fewer close
+WHALE_SHARE = 0.25            # one wallet holding this much of the vote is a whale call
+THIN_BOOK_VOTERS = 20

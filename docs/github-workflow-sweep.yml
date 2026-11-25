@@ -76,6 +76,11 @@ jobs:
             site/data/signal.json
             site/data/history_gold.json
             site/data/history_silver.json
+            data/alerts.json
+            site/data/alerts.json
+            site/feed/gold.xml
+            site/feed/silver.xml
+            site/feed/all.xml
           )
           git add "${files[@]}"
           if git diff --staged --quiet; then
@@ -85,14 +90,16 @@ jobs:
           git commit -m "Update gold and silver snapshot"
 
           tmp="$(mktemp -d)"
-          mkdir -p "$tmp/data" "$tmp/site/data"
-          cp data/signal.json data/history_gold.json data/history_silver.json data/cohort.json "$tmp/data/"
-          cp site/data/signal.json site/data/history_gold.json site/data/history_silver.json "$tmp/site/data/"
+          for f in "${files[@]}"; do
+            mkdir -p "$tmp/$(dirname "$f")"
+            cp "$f" "$tmp/$f"
+          done
 
           restore() {
-            mkdir -p data site/data
-            cp "$tmp/data/signal.json" "$tmp/data/history_gold.json" "$tmp/data/history_silver.json" "$tmp/data/cohort.json" data/
-            cp "$tmp/site/data/signal.json" "$tmp/site/data/history_gold.json" "$tmp/site/data/history_silver.json" site/data/
+            for f in "${files[@]}"; do
+              mkdir -p "$(dirname "$f")"
+              cp "$tmp/$f" "$f"
+            done
           }
 
           for attempt in 1 2 3 4 5; do
