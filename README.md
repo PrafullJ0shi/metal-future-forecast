@@ -118,8 +118,46 @@ A sweep takes a few minutes inside the public limit of 1,200 request weight per 
 ## Backtest
 
 <!-- BT -->
-> [!NOTE]
-> Backtest numbers pending. The wallet position-history pull (every cohort wallet's metal positions since listing) is still running; results, CSVs and figures land in [research/backtest](research/backtest) in the next push.
+The live call, rebuilt day by day from every cohort wallet's `xyz:GOLD` and `xyz:SILVER` positions since the markets listed (via `userFunding`; fills only reach back a few days for busy wallets). Fees and funding included; the last 30 days are in-sample because the cohort was ranked on them.
+
+| Metal | Window | Metal move | Signal | Buy and hold | Always short | Sharpe-like | Max DD | Hit rate |
+| :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Gold | Since listing, before ranking month (daily, out-of-sample) | -10.1% | **+2.7%** | -16.3% | +10.3% | 0.25 | -19.4% | 50% |
+| Gold | Since listing (daily bars) | -20.4% | **+15.6%** | -26.3% | +24.2% | 0.71 | -19.4% | 51% |
+| Gold | Hourly max (all 1h candles) | -23.8% | **+18.3%** | -27.2% | +33.0% | 1.56 | -18.2% | 50% |
+| Gold | Last 90 days (hourly) | -23.1% | **+34.8%** | -24.5% | +30.5% | 5.43 | -6.4% | 51% |
+| Gold | Last 30 days (hourly, in-sample) | -12.3% | **+13.9%** | -12.9% | +13.9% | 5.99 | -6.4% | 51% |
+| Silver | Since listing, before ranking month (daily, out-of-sample) | -31.9% | **+0.2%** | -37.5% | +4.9% | 0.32 | -38.5% | 44% |
+| Silver | Since listing (daily bars) | -48.3% | **+2.1%** | -52.8% | +35.6% | 0.34 | -38.5% | 44% |
+| Silver | Hourly max (all 1h candles) | -46.0% | **+3.3%** | -48.8% | +72.9% | 0.34 | -24.9% | 49% |
+| Silver | Last 90 days (hourly) | -41.1% | **+9.8%** | -42.2% | +65.6% | 1.54 | -10.4% | 49% |
+| Silver | Last 30 days (hourly, in-sample) | -25.7% | **+1.9%** | -26.3% | +32.7% | 0.92 | -10.2% | 44% |
+
+**Holding horizons** (hourly bars, 1 May to now, fees and funding in; full table for every window in the write-up):
+
+| Metal | Horizon | Trades | Hit rate | Avg net per trade | Always-short avg net | Total return | Max DD |
+| :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Gold | 1h | 3851 | 50% | **-17.5 bp** | -17.4 bp | -99.9% | -99.9% |
+| Gold | 4h | 962 | 52% | **-15.9 bp** | -15.5 bp | -78.6% | -79.3% |
+| Gold | 12h | 320 | 55% | **-11.4 bp** | -10.8 bp | -31.4% | -39.7% |
+| Gold | 1d | 159 | 57% | **-6.4 bp** | -4.1 bp | -10.5% | -24.9% |
+| Gold | 3d | 53 | 53% | **+2.0 bp** | +21.2 bp | +0.4% | -20.5% |
+| Gold | 1w | 21 | 57% | **+68.4 bp** | +73.1 bp | +14.2% | -14.9% |
+| Silver | 1h | 3621 | 49% | **-1.6 bp** | -0.6 bp | -46.1% | -51.5% |
+| Silver | 4h | 905 | 50% | **-0.9 bp** | +3.2 bp | -11.9% | -30.7% |
+| Silver | 12h | 301 | 52% | **+0.6 bp** | +13.0 bp | -2.6% | -26.6% |
+| Silver | 1d | 150 | 48% | **+4.2 bp** | +26.8 bp | +2.4% | -25.7% |
+| Silver | 3d | 50 | 48% | **+33.9 bp** | +78.5 bp | +12.9% | -23.1% |
+| Silver | 1w | 20 | 50% | **+31.4 bp** | +179.6 bp | +3.0% | -24.9% |
+
+![Average net return per trade by holding horizon](research/backtest/figures/horizons.png)
+
+Gold, hourly bars: average net per trade is negative at 1h, 4h, 12h, 1d; positive at 3d, 1w; Gold, daily bars: average net per trade is negative at 1d, 3d; positive at 1w. Silver, hourly bars: average net per trade is negative at 1h, 4h; positive at 12h, 1d, 3d, 1w; Silver, daily bars: average net per trade is negative at no horizon; positive at 1d, 3d, 1w.
+
+**Honest take.** **Gold, out-of-sample (23 Dec 2025 to 27 Oct 2026):** the signal made +2.7% (Sharpe-like 0.25, max drawdown -19.4%) while gold moved -10.1%. Buy and hold made -16.3%, always short +10.3%. Against the better baseline (always short) that is -7.6%: no edge over simply picking a side. **Silver, out-of-sample (28 Dec 2025 to 27 Oct 2026):** the signal made +0.2% (Sharpe-like 0.32, max drawdown -38.5%) while silver moved -31.9%. Buy and hold made -37.5%, always short +4.9%. Against the better baseline (always short) that is -4.7%: no edge over simply picking a side. Full write-up with regimes, long-only and short-only legs, the threshold grid and every bias: [research/backtest](research/backtest/README.md). Wagmi only if it holds up forward.
+
+<p align="center"><img src="research/backtest/figures/equity_gold.png" alt="Gold: equity curves of the signal, buy and hold, always short, long-only, short-only and fade since listing" width="49%"> <img src="research/backtest/figures/equity_silver.png" alt="Silver: equity curves of the signal and baselines since listing" width="49%"></p>
+<!-- /BT -->
 
 ## Run it locally
 

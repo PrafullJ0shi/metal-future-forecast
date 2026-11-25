@@ -1,0 +1,82 @@
+{
+ "market": {
+  "xyz:GOLD": {
+   "candles_1h": {
+    "n": 5004,
+    "from": "2026-05-01T02:00Z",
+    "to": "2026-11-25T13:00Z",
+    "limit": "candleSnapshot serves only the latest 5,000 candles per interval"
+   },
+   "candles_1d": {
+    "n": 339,
+    "from": "2025-12-22T00:00Z",
+    "to": "2026-11-25T00:00Z"
+   },
+   "funding": {
+    "n": 8111,
+    "from": "2025-12-22T15:00Z",
+    "to": "2026-11-25T13:00Z"
+   }
+  },
+  "xyz:SILVER": {
+   "candles_1h": {
+    "n": 5003,
+    "from": "2026-05-01T03:00Z",
+    "to": "2026-11-25T13:00Z",
+    "limit": "candleSnapshot serves only the latest 5,000 candles per interval"
+   },
+   "candles_1d": {
+    "n": 335,
+    "from": "2025-12-26T00:00Z",
+    "to": "2026-11-25T00:00Z"
+   },
+   "funding": {
+    "n": 8029,
+    "from": "2025-12-26T01:00Z",
+    "to": "2026-11-25T13:00Z"
+   }
+  },
+  "PAXG": {
+   "candles_1h": {
+    "n": 5004,
+    "from": "2026-05-01T02:00Z",
+    "to": "2026-11-25T13:00Z",
+    "limit": "candleSnapshot serves only the latest 5,000 candles per interval"
+   },
+   "candles_1d": {
+    "n": 609,
+    "from": "2025-03-27T00:00Z",
+    "to": "2026-11-25T00:00Z"
+   },
+   "funding": {
+    "n": 14350,
+    "from": "2025-04-06T16:00Z",
+    "to": "2026-11-25T13:00Z"
+   }
+  }
+ },
+ "wallets": {
+  "cohort": 500,
+  "cohort_built_at_utc": "2026-11-25T13:10:07Z",
+  "history": {
+   "complete": 500
+  },
+  "history_source": "userFunding (one row per open position per funding hour; older rows served as daily aggregates)",
+  "history_from": "2025-12-21T15:00Z",
+  "history_to": "2026-11-25T13:15Z",
+  "daily_rows_until": "2026-11-16T00:00Z",
+  "sampled_days_from": "2026-11-17T00:00Z",
+  "sampled_hour": "12:00 UTC (recent days are served hourly only; one hour per day is read)",
+  "wallets_ever_in": {
+   "gold": 130,
+   "silver": 121
+  },
+  "assumed_flat_rule": "wallets with no xyz account value and no metal position today were not read and count as flat",
+  "blind_spot": "positions opened and closed between two funding hours never show up",
+  "today_only": [
+   "leaderboard rank and month PnL",
+   "account equity",
+   "cohort membership"
+  ]
+ }
+}

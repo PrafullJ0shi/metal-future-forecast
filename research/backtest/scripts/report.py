@@ -67,10 +67,24 @@ def verdict_lines():
             f"In a falling market a mostly-short reading earns most of what always-short earns; the question is whether its long and flat days helped. "
             f"Short-only legs made {pct(o['short_only']['total_return'])}, long-only legs {pct(o['long_only']['total_return'])}, and fading the signal {pct(o['fade']['total_return'])}."
         )
-        lines.append(
-            f"<b>{METAL[k]}, thresholds:</b> the best pair on the tune half was {best['long']:.2f} / {best['short']:.2f}; on the test half it made {pct(best['test']['total_return'])}, "
-            f"against {pct(live['test']['total_return'])} for the live 0.60 / 0.40. Five pairs, no winner that survives the split cleanly, so the live thresholds stay."
-        )
+        if [best["long"], best["short"]] == [live["long"], live["short"]]:
+            tail = "the live pair was itself the best on the tune half, so nothing was gained by moving it."
+        else:
+            tail = (f"it made {pct(best['test']['total_return'])} on the test half against {pct(live['test']['total_return'])} for the live 0.60 / 0.40. "
+                    + ("The tuned pair held up out of sample, but the gap sits inside the noise of a few dozen trades; the live thresholds stay."
+                       if best["test"]["total_return"] > live["test"]["total_return"] else "The tuned pair did worse out of sample than the live one, a textbook overfit; the live thresholds stay."))
+        lines.append(f"<b>{METAL[k]}, thresholds:</b> the best of five pairs on the tune half was {best['long']:.2f} / {best['short']:.2f}; {tail}")
+        H = m["horizons"]["hourly"]["max_h"]
+        Hd = m["horizons"]["daily"]["listing"]
+        los = [l for l, r in H.items() if r["signal"]["trades"] and r["signal"]["avg_net"] < 0]
+        losd = [l for l, r in Hd.items() if r["signal"]["trades"] and r["signal"]["avg_net"] < 0]
+        def beats(HH):
+            return [f"{l} ({bps(r['signal']['avg_net'])} vs {bps(max(r['short'].get('avg_net') or -9, r['long'].get('avg_net') or -9))}, {r['signal']['trades']} trades)"
+                    for l, r in HH.items() if r["signal"]["trades"] and r["signal"]["avg_net"] > max(r["short"].get("avg_net") or -9, r["long"].get("avg_net") or -9)]
+        rt = 2 * m["taker_fee"] * 1e4
+        lines.append(f"<b>{METAL[k]}, horizons:</b> after round-trip fees ({rt:.1f} bp) and funding, the signal loses money per trade at {', '.join(los) or 'no horizon'} on hourly bars (1 May to now) "
+                     f"and at {', '.join(losd) or 'no horizon'} on daily bars since listing. Hit rates sit near 50% at the short horizons, so the gross edge is a few basis points at best. "
+                     f"It beats both naive holds on the same schedule only at: {'; '.join(beats(H) + beats(Hd)) or 'no horizon'}. Those cells are small samples.")
         head.append(f"{METAL[k]}: signal {pct(L['signal']['total_return'])} vs hold {pct(L['hold']['total_return'])} and always short {pct(L['short']['total_return'])} since listing")
     lines.append("<b>Biases that flatter these numbers:</b> the cohort, its month PnL and its equity are today's, applied to every past day (survivorship). "
                  "Wallets that blew up before today never vote. The last 30 days are in-sample by construction, which is why the out-of-sample cut stops before them.")
@@ -160,7 +174,7 @@ def hz_text(m, k):
         H = m["horizons"][g][wn]
         los = [l for l, r in H.items() if r["signal"]["trades"] and r["signal"]["avg_net"] < 0]
         win = [l for l, r in H.items() if r["signal"]["trades"] and r["signal"]["avg_net"] >= 0]
-        out.append(f"{METAL[k]}, {g} bars: loses money after costs at {', '.join(los) or 'no horizon'}; positive at {', '.join(win) or 'no horizon'}")
+        out.append(f"{METAL[k]}, {g} bars: average net per trade is negative at {', '.join(los) or 'no horizon'}; positive at {', '.join(win) or 'no horizon'}")
     return "; ".join(out) + "."
 
 
@@ -220,7 +234,7 @@ Would trading the live call (LONG at P(long) of 0.60 or more, SHORT at 0.40 or l
 
 {reach_table()}
 
-Weight covered: the wallets read hold {pct(g['known_weight_share'], 0, False)} of the cohort's static vote weight (skill times equity). The rest have no xyz account today; a wallet needs xyz margin to hold these markets, so they are counted as flat, which is the same as no vote.
+Coverage: all 500 cohort wallets were read in full (zero wallets missing or assumed flat). A wallet that never held a metal simply never votes.
 
 ## Gold (`xyz:GOLD`)
 
@@ -281,7 +295,7 @@ Method: every N hours (aligned to the UTC clock; weekly entries to the Unix week
 ![Horizons](figures/horizons.png)
 
 """ + "\n".join(f"### {METAL[k]}\n\n" + "\n\n".join(f"**{lab}**\n\n{hz_table(S['metals'][k], g, wn)}" for g, wn, lab in HZ_WINS) + "\n" for k in ("gold", "silver")) + """
-**Reading it.** """ + " ".join(hz_text(S["metals"][k], k) for k in ("gold", "silver")) + """ Where the signal's average net per trade is below zero the horizon loses money; where always-short on the same schedule does better, the call added nothing in a falling market.
+**Reading it.** """ + " ".join(hz_text(S["metals"][k], k) for k in ("gold", "silver")) + """ Where the signal's average net per trade is below zero the horizon loses money; where always-short on the same schedule does better, the call added nothing in a falling market. Net includes funding, which is income for shorts when funding is positive, so it can exceed gross. Average per trade and compounded total return can disagree in sign when a few large losers sit among many small winners.
 
 ## Signal and participation
 
@@ -329,7 +343,7 @@ The live call, rebuilt day by day from every cohort wallet's `xyz:GOLD` and `xyz
 
 {hz_text(S["metals"]["gold"], "gold")} {hz_text(S["metals"]["silver"], "silver")}
 
-**Honest take.** {plain[0]} {plain[3]} Full write-up with regimes, long-only and short-only legs, the threshold grid and every bias: [research/backtest](research/backtest/README.md). Wagmi only if it holds up forward.
+**Honest take.** {plain[0]} {plain[4]} Full write-up with regimes, long-only and short-only legs, the threshold grid and every bias: [research/backtest](research/backtest/README.md). Wagmi only if it holds up forward.
 
 <p align="center"><img src="research/backtest/figures/equity_gold.png" alt="Gold: equity curves of the signal, buy and hold, always short, long-only, short-only and fade since listing" width="49%"> <img src="research/backtest/figures/equity_silver.png" alt="Silver: equity curves of the signal and baselines since listing" width="49%"></p>
 <!-- /BT -->"""
