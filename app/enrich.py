@@ -14,6 +14,7 @@ from typing import Any, Optional
 
 from . import alerts as AL
 from . import config
+from . import scalp
 from . import v2
 
 log = logging.getLogger("enrich")
@@ -25,6 +26,8 @@ def apply(payload: dict[str, Any], prev_verdicts: Optional[dict[str, Optional[st
     metals = payload["metals"]
     for key, block in metals.items():
         block["crowding"] = v2.crowding(block)
+        gross = (block.get("notional_long") or 0.0) + (block.get("notional_short") or 0.0)
+        block["scalp"] = scalp.lean(block.get("label") or key, block.get("hour"), block.get("market"), gross)
     if {"gold", "silver"} <= set(metals):
         g, s = metals["gold"], metals["silver"]
         payload["tilt"] = v2.tilt(g, s, (g.get("market") or {}).get("chart_1d") or [],

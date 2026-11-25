@@ -1,5 +1,5 @@
 // v2 panels: gold-silver pair check, crowd check per metal, opt-in flip alerts.
-import { px, pct, num, p2, cls, esc, when, ago, day } from "./fmt.js";
+import { px, pct, num, p2, cls, esc, when, ago, day, usd, short } from "./fmt.js";
 import { lineChart } from "./charts.js";
 import { PREF_KEY, parsePrefs, pickToNotify, newestMs, permissionLine, eventTag } from "./alertlogic.js";
 
@@ -143,6 +143,85 @@ export function renderCrowd(d) {
   }
 }
 
+/* ---------------------------------------------------------------- long vs short + last hour */
+
+// Two-sided bar: shorts grow left from the centre line, longs grow right.
+function twoSide(label, shortV, longV, fmt, ariaUnit) {
+  const tot = (shortV || 0) + (longV || 0);
+  const sp = tot > 0 ? shortV / tot : 0.5, lp = tot > 0 ? longV / tot : 0.5;
+  return `<div class="twoside" role="img" aria-label="${esc(label)}: ${fmt(shortV)} short, ${fmt(longV)} long ${ariaUnit}">
+    <div class="ts-head"><span class="down">${fmt(shortV)} short</span><span class="ts-label">${esc(label)}</span><span class="up">${fmt(longV)} long</span></div>
+    <div class="ts-bar"><span class="ts-short" style="flex:${Math.max(sp, 0.0001)}"></span><span class="ts-long" style="flex:${Math.max(lp, 0.0001)}"></span></div>
+    <div class="ts-foot"><span>${tot > 0 ? Math.round(sp * 100) : "–"}%</span><span>${tot > 0 ? Math.round(lp * 100) : "–"}%</span></div>
+  </div>`;
+}
+
+const KIND_WORD = { opened: "opened", added: "added", trimmed: "trimmed", closed: "closed", flipped: "flipped to" };
+
+function hourTable(h) {
+  if (!h.items?.length) return "";
+  return `<div class="table-wrap"><table class="data compact hourtab"><tr><th>Wallet</th><th>What</th><th class="num">Size</th><th class="num">Seen</th></tr>` +
+    h.items.slice(0, 8).map(i => `<tr><td><a class="addr" href="https://app.hyperliquid.xyz/explorer/address/${esc(i.address)}" rel="noopener">${esc(short(i.address))}</a></td>
+      <td>${KIND_WORD[i.kind] || esc(i.kind)} <span class="tag ${i.side}">${i.side}</span></td>
+      <td class="num ${cls(i.kind === "closed" || i.kind === "trimmed" ? -1 : i.kind === "flipped" ? (i.side === "LONG" ? 1 : -1) : 1)}">${usd(i.usd)}</td>
+      <td class="num">${ago(i.seen_ms)}</td></tr>`).join("") + `</table></div>`;
+}
+
+export function renderSplit(d) {
+  for (const k of METALS) {
+    const el = document.getElementById("split-" + k);
+    if (!el) continue;
+    const m = d.metals?.[k]; if (!m) continue;
+    const h = m.hour;
+    let body = `<h2 class="ptitle">Long vs short: ${NAME[k].toLowerCase()}</h2>
+      <p class="psub">The top 500 wallets that hold ${NAME[k].toLowerCase()} right now, by head count and by dollars.</p>
+      ${twoSide("Wallets", m.n_short, m.n_long, v => num(v, 0), "wallets")}
+      ${twoSide("USD notional", m.notional_short, m.notional_long, v => usd(v), "")}
+      <p class="note">${num(m.n_flat, 0)} of the top 500 hold none and do not vote.</p>
+      <h3 class="ptitle sub">Last hour: who did what</h3>`;
+    if (!h || !h.available) {
+      body += empty(h?.reason || "The last-hour view shows up with the next sweep. The furnace is warming.");
+    } else {
+      const sn = h.split_now?.long_share, st = h.split_then?.long_share;
+      const delta = sn != null && st != null ? (sn - st) * 100 : null;
+      body += `<p class="hour-sum">${esc(h.summary)}</p>
+        <p class="note hour-split">Long share of the dollars: ${st != null ? pct(st, 0, false) : "–"} to ${sn != null ? pct(sn, 0, false) : "–"}${delta != null ? ` (<span class="${cls(delta)}">${delta > 0 ? "+" : delta < 0 ? "−" : ""}${Math.abs(delta).toFixed(1)} pts</span>)` : ""} over ${h.span_min} minutes, valued at today's price so it counts trades, not price moves.</p>
+        ${hourTable(h) || empty("Nobody moved by $1k or more.")}
+        <p class="note">${esc(h.resolution_note)}${h.partial ? ` History only reaches back ${h.span_min} minutes so far.` : ""}</p>`;
+    }
+    el.innerHTML = body;
+  }
+}
+
+/* ---------------------------------------------------------------- scalp corner */
+
+const LEAN_CLS = { "SCALP LONG": "LONG", "SCALP SHORT": "SHORT", "SIT OUT": "NEUTRAL" };
+
+function partBar(label, v, used) {
+  const w = Math.abs(v) * 50;
+  return `<div class="part ${used ? "" : "off"}"><span class="pl">${label}</span>
+    <span class="pbar" role="img" aria-label="${label} ${used ? v.toFixed(2) : "not used"}"><i class="mid"></i>${used ? `<i class="fill ${v >= 0 ? "up" : "down"}" style="${v >= 0 ? "left:50%" : `right:50%`};width:${w}%"></i>` : ""}</span>
+    <span class="pv">${used ? (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(2) : "n/a"}</span></div>`;
+}
+
+export function renderScalp(d) {
+  const wrap = document.getElementById("scalp");
+  if (!wrap) return;
+  for (const k of METALS) {
+    const el = document.getElementById("scalp-" + k);
+    if (!el) continue;
+    const s = d.metals?.[k]?.scalp;
+    if (!s) { el.innerHTML = `<h3 class="ptitle sub">${NAME[k]}</h3>${empty("The scalp read shows up with the next sweep.")}`; continue; }
+    const c = LEAN_CLS[s.lean] || "NEUTRAL";
+    el.innerHTML = `<div class="scalp-head"><h3 class="ptitle sub">${NAME[k]}</h3>
+        <div class="scalp-stamp ${c}" aria-label="Short-term lean ${esc(s.lean)}, confidence ${esc(s.confidence)}">${esc(s.lean)}</div>
+        <span class="conf">confidence: <b>${esc(s.confidence)}</b></span></div>
+      <ul class="why">${s.reasons.map(r => `<li>${esc(r)}</li>`).join("")}</ul>
+      <div class="parts">${partBar("Wallet flow", s.parts.flow, s.used.flow)}${partBar("1h price", s.parts.momentum, s.used.momentum)}${partBar("Funding fade", s.parts.funding, s.used.funding)}</div>
+      <p class="note">1h move ${pct(s.price_move_1h, 2)} &middot; funding ${pct(s.funding_hourly, 4)} an hour &middot; blended score ${num(s.score, 2)} (lean at &plusmn;0.25)${s.window_min ? ` &middot; window ${s.window_min} min` : ""}</p>`;
+  }
+}
+
 /* ---------------------------------------------------------------- alerts */
 
 const supported = typeof Notification !== "undefined";
@@ -229,5 +308,5 @@ export async function initAlerts(d) {
   startPolling();
 }
 
-export function initV2(d) { renderTilt(d); renderCrowd(d); initAlerts(d); }
+export function initV2(d) { renderTilt(d); renderCrowd(d); renderSplit(d); renderScalp(d); initAlerts(d); }
 export function redrawV2(d) { drawTilt(d); }

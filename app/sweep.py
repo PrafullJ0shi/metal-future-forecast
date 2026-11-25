@@ -17,6 +17,7 @@ import sys
 import time
 from typing import Any, Optional
 
+from . import activity as ACT
 from . import alerts as AL
 from . import config
 from . import enrich as ENRICH
@@ -34,7 +35,7 @@ from .hl_client import (
 )
 from .signal import compute_signal, trader_weight
 from .timeutil import iso_utc, now_utc
-from .tracking import run_tracking
+from .tracking import run_tracking, ts_ms
 
 log = logging.getLogger("sweep")
 
@@ -200,16 +201,7 @@ def position_changes(prev: Optional[dict[str, Any]], rows: list[dict[str, Any]],
         p, c = float(prev_pos[r["address"]]), float(r.get("szi") or 0.0)
         if abs(c - p) * mark < 1000:
             continue
-        if p == 0:
-            kind = "opened"
-        elif c == 0:
-            kind = "closed"
-        elif (p > 0) != (c > 0):
-            kind = "flipped"
-        elif abs(c) > abs(p):
-            kind = "added"
-        else:
-            kind = "trimmed"
+        kind = ACT.classify_move(p, c)
         counts[kind] += 1
         w = trader_weight(r.get("month_pnl") or 0.0, r.get("equity") or 0.0, abs(c) * mark)
         items.append({"address": r["address"], "kind": kind, "prev": p, "cur": c,
@@ -323,6 +315,19 @@ async def run_sweep(*, force_portfolio: bool = False) -> dict[str, Any]:
                 "flows": tracker_block,
                 "n_builder_accounts": sum(1 for a in accounts if a["equity_builder"] > 0),
             })
+            # v2: the last hour of top-wallet activity, from a short log of who held what (kept in cohort.json)
+            pos_log = state.get("pos_log") or []
+            if not pos_log and (state.get("last_positions") or {}).get("positions"):
+                lp = state["last_positions"]
+                t_lp = ts_ms(lp.get("ts_utc"))
+                if t_lp:
+                    pos_log = [{"t": t_lp, "mark": lp.get("mark"), "bad": [],
+                                "p": {a: v for a, v in lp["positions"].items() if v}}]
+            try:
+                body["hour"], new_pos_log = ACT.build(pos_log, rows_top, mark, now_ms, metal=m["label"].lower())
+            except Exception as exc:  # noqa: BLE001 — the reading must still publish
+                log.exception("%s hour view failed: %s", key, exc)
+                body["hour"], new_pos_log = {"available": False, "reason": "The last-hour view hit an error.", "items": []}, pos_log
             row = {"ts_utc": iso_utc(issued), "mark": mark, "p_long": body["p_long"], "ci_low": body["ci_low"],
                    "ci_high": body["ci_high"], "verdict": body["verdict"], "n_long": body["n_long"],
                    "n_short": body["n_short"], "n_flat": body["n_flat"], "notional_long": body["notional_long"],
@@ -337,6 +342,7 @@ async def run_sweep(*, force_portfolio: bool = False) -> dict[str, Any]:
             for k in ("tracker_positions", "flow_log", "tape"):
                 if k not in st and state.get(k) is not None:
                     st[k] = state[k]
+            st["pos_log"] = new_pos_log
             st["last_positions"] = {"ts_utc": iso_utc(issued), "mark": mark, "positions": compact_positions(rows_top)}
             new_metals_state[key] = st
             timings[f"{key}_sec"] = round(time.monotonic() - t3, 2)
