@@ -25,5 +25,6 @@
 {"ts_utc":"2026-11-26T16:47:34Z","mark":41.706,"p_long":0.265989,"ci_low":0.07586,"ci_high":0.749526,"verdict":"SHORT","n_long":13,"n_short":16,"n_flat":471,"notional_long":1349380.073,"notional_short":19713747.93553,"oi":3419807.6,"funding":7.9878e-06},
 {"ts_utc":"2026-11-26T18:13:31Z","mark":41.578,"p_long":0.36828,"ci_low":0.112147,"ci_high":0.831258,"verdict":"SHORT","n_long":12,"n_short":15,"n_flat":473,"notional_long":1345425.30864,"notional_short":18617450.80522,"oi":3417892.3,"funding":9.1818e-06},
 {"ts_utc":"2026-11-26T19:08:34Z","mark":41.581,"p_long":0.365398,"ci_low":0.111035,"ci_high":0.82591,"verdict":"SHORT","n_long":12,"n_short":15,"n_flat":473,"notional_long":1346175.17074,"notional_short":20315342.27948,"oi":3452849.26,"funding":6.25e-06},
-{"ts_utc":"2026-11-26T20:26:34Z","mark":41.696,"p_long":0.363115,"ci_low":0.110855,"ci_high":0.813712,"verdict":"SHORT","n_long":13,"n_short":15,"n_flat":472,"notional_long":1349612.8336,"notional_short":22443089.41241,"oi":3593297.88,"funding":5.26883e-05}
+{"ts_utc":"2026-11-26T20:26:34Z","mark":41.696,"p_long":0.363115,"ci_low":0.110855,"ci_high":0.813712,"verdict":"SHORT","n_long":13,"n_short":15,"n_flat":472,"notional_long":1349612.8336,"notional_short":22443089.41241,"oi":3593297.88,"funding":5.26883e-05},
+{"ts_utc":"2026-11-26T21:45:39Z","mark":41.752,"p_long":0.363361,"ci_low":0.110737,"ci_high":0.814516,"verdict":"SHORT","n_long":13,"n_short":15,"n_flat":472,"notional_long":1351377.31552,"notional_short":22355572.30432,"oi":3609952.32,"funding":2.2822e-05}
 ]
