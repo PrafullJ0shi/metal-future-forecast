@@ -219,6 +219,23 @@ tests/          pytest suite
 
 v2 is planned in [docs/ROADMAP.md](docs/ROADMAP.md): a forward test from stored live snapshots, a gold-silver tilt view, more markets, a fill archive and alerts.
 
+## V2 roadmap: product and developer track
+
+The [v2 plan](docs/ROADMAP.md) covers the forecast research. This track lists ten planned features for people who read the site and developers who build on it. Planned, not shipped. None of them changes how a verdict is made.
+
+1. **Crypto wallets against COMEX funds.** Put the cohort's lean next to managed-money net positions from the CFTC Commitments of Traders report (free, weekly, gold and silver) and say plainly when the two disagree. *Users:* on-chain positioning in the context of the much larger futures market.
+2. **Tokenised gold basis.** Track the gap between `xyz:GOLD`, PAXG and other tokenised gold against a reference price, and flag unusual spreads. *Users and arbitrage-minded developers:* see where gold trades rich or cheap on-chain.
+3. **Local units and currencies.** Show prices and bag sizes per gram, per 10 grams, per ounce and per kilogram, in the reader's currency, using public reference FX rates. *Users:* numbers that match how people actually buy metal.
+4. **Macro event overlays.** Mark CPI, central-bank decisions and payroll releases on the charts, with how the cohort was positioned before and after each one. *Users:* see whether the top wallets lean into or away from scheduled risk.
+5. **Verifiable call log.** Hash each issued call and timestamp the hash publicly, with a script that proves an old call was not edited. *Users:* a history that cannot be quietly rewritten.
+6. **Telegram and Discord bot with the mascots.** Flip messages and on-demand readings in the site's voice, always carrying the interval and the not-advice line. *Revenue:* free in public groups; private communities pay for their own instance.
+7. **Daily share card and embed.** An auto-drawn cartoon card of the day's two calls and a small embeddable widget. *Users and writers:* share the reading with its interval attached. *Revenue:* free with a link back; white-label embeds are paid.
+8. **Versioned API and webhooks.** A documented schema for the signal, flow and alerts files, plus signed webhooks. *Developers:* a stable contract to build on. *Revenue:* static files stay free; hosted history queries and webhooks are a paid tier.
+9. **Shared core for any HIP-3 market.** Extract the cohort, signal and flow code shared with [hyperliquid-btc-signal](https://github.com/PrafullJ0shi/hyperliquid-btc-signal) into one package, so a new market (oil, copper, an equity perp) is a config file and a theme. *Developers:* stand up a positioning site for any market. *Revenue:* HIP-3 market deployers can sponsor a maintained site for their markets, labelled as sponsored.
+10. **Builder-code trade ticket.** An optional, off-by-default order form for the gold and silver perps using Hyperliquid's official builder-code mechanism; the user approves a maximum fee in their own wallet and sees it before every order. *Developers:* an open reference integration. *Revenue:* the builder fee on routed fills.
+
+**Order.** V2.0: items 1, 3, 5, 7 and 8. V2.1: items 2, 4, 6, 9 and 10.
+
 ## Credits and licence
 
 Code under the [MIT licence](LICENSE). Fonts are self-hosted: [Luckiest Guy](https://fonts.google.com/specimen/Luckiest+Guy) by Astigmatic (Apache License 2.0, see [`site/fonts/LuckiestGuy-LICENSE.txt`](site/fonts/LuckiestGuy-LICENSE.txt)) and [Nunito](https://fonts.google.com/specimen/Nunito) by Vernon Adams and contributors (SIL Open Font License 1.1, see [`site/fonts/OFL.txt`](site/fonts/OFL.txt)). Market data from the public Hyperliquid API. Design notes in [DESIGN.md](DESIGN.md), history in [CHANGELOG.md](CHANGELOG.md), house rules in [CONTRIBUTING.md](CONTRIBUTING.md).
